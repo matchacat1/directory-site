@@ -1,0 +1,27 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+const plugins = [
+  {
+    href: '/projects/faber',
+    title: 'Faber',
+    body: 'Semi-modular wavetable synthesizer',
+  },
+];
+---
+
+<Layout title="Projects" active="projects">
+  <h1>Projects</h1>
+
+  <div class="project-grid">
+    {plugins.map((p) => (
+      <div class="project-card">
+        <a class="project-image" href={p.href} aria-label={p.title}>
+          {p.title}
+        </a>
+        <a class="project-title" href={p.href}>{p.title}</a>
+        <p class="project-desc">{p.body}</p>
+      </div>
+    ))}
+  </div>
+</Layout>

@@ -1,0 +1,27 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { musicTracks } from '../../data/music-tracks';
+
+const SLUG = 'hoshia-tone';
+const idx = musicTracks.findIndex((t) => t.slug === SLUG);
+const track = musicTracks[idx];
+const prev = musicTracks[(idx - 1 + musicTracks.length) % musicTracks.length];
+const next = musicTracks[(idx + 1) % musicTracks.length];
+---
+
+<Layout title={track.title} active="music">
+  <h1>{track.title}</h1>
+
+  <p>
+    Placeholder detail page for hoshia tone. Describe the problem, your
+    role, and the outcome — link out to a repo, write-up, or live demo
+    if you have one.
+  </p>
+
+  <nav class="track-nav" aria-label="Other music projects">
+    <a class="track-nav-link track-nav-prev" href={`/music/${prev.slug}`}>← {prev.title}</a>
+    <a class="track-nav-link track-nav-next" href={`/music/${next.slug}`}>{next.title} →</a>
+  </nav>
+
+  <a class="back-link" href="/music">← Back to Music</a>
+</Layout>

@@ -1,0 +1,22 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { musicTracks } from '../../data/music-tracks';
+
+const tracks = musicTracks.map((t) => ({ href: `/music/${t.slug}`, title: t.title, body: t.body }));
+---
+
+<Layout title="Music" active="music">
+  <h1>Music</h1>
+
+  <div class="project-grid">
+    {tracks.map((p) => (
+      <div class="project-card">
+        <a class="project-image" href={p.href} aria-label={p.title}>
+          {p.title}
+        </a>
+        <a class="project-title" href={p.href}>{p.title}</a>
+        <p class="project-desc">{p.body}</p>
+      </div>
+    ))}
+  </div>
+</Layout>

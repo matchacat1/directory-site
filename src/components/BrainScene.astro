@@ -1,0 +1,450 @@
+---
+import brainData from '../data/brain-grid.json';
+
+function buildMarkup(grid: string[]) {
+  return grid
+    .map((row) => {
+      let out = '';
+      for (const ch of row) {
+        out += ch === ' ' ? ' ' : `<span class="ic">${ch}</span>`;
+      }
+      return out;
+    })
+    .join('\n');
+}
+
+const gridHtml = buildMarkup(brainData.grid);
+const gridJson = JSON.stringify(brainData.grid);
+---
+
+<div id="brain-scene" class="brain-scene" transition:persist="brain-scene">
+  <div class="brain-crop">
+    <pre id="brain-text" class="brain-text" data-cols={brainData.cols} data-rows={brainData.rows} set:html={gridHtml} />
+  </div>
+  <canvas id="brain-canvas" class="brain-canvas" aria-hidden="true"></canvas>
+</div>
+
+<style>
+  .brain-scene {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  /* Full visibility only on the home page — dimmed and blurred everywhere
+     else so page content stays readable while the animation keeps running
+     underneath. body[data-page] is set per-page in Layout.astro. This is a
+     no-JS fallback only — the real animated version is JS-driven below,
+     because a CSS `transition` triggered by an attribute change made inside
+     Astro's view-transition callback doesn't get a "before" frame to
+     animate from and just snaps instantly. */
+  body:not([data-page='home']) .brain-scene {
+    filter: blur(1.5px);
+    opacity: 0.28;
+  }
+
+  .brain-crop {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+
+  .brain-text {
+    position: absolute;
+    right: -90px;
+    bottom: -80px;
+    margin: 0;
+    font-family: "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+    font-size: 6px;
+    line-height: 1.15;
+    letter-spacing: 0.04em;
+    white-space: pre;
+    color: var(--ink);
+    -webkit-user-select: text;
+    user-select: text;
+    pointer-events: auto;
+    cursor: text;
+    transform-origin: bottom right;
+  }
+
+  /* Smaller target box on mobile (see TARGET_SIZES in the script below) —
+     offsets scaled down to match so the crop framing stays proportional. */
+  @media (max-width: 720px) {
+    .brain-text {
+      right: -50px;
+      bottom: -44px;
+    }
+  }
+
+  /* Individual ink characters — hidden until the load-in reveal switches
+     them on in random order. :global() because set:html content bypasses
+     Astro's scoped-style attribute. */
+  :global(.brain-text .ic) {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  .brain-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+</style>
+
+<script define:vars={{ gridJson }}>
+  if (!window.__brainSceneInit) {
+    window.__brainSceneInit = true;
+
+    const GRID = JSON.parse(gridJson);
+    const COLS = GRID[0]?.length || 0;
+    const ROWS = GRID.length;
+
+    const canvas = document.getElementById('brain-canvas');
+    const brainText = document.getElementById('brain-text');
+    const ctx = canvas.getContext('2d');
+
+    if (canvas && brainText && ctx && COLS && ROWS) {
+      // Topmost non-space row per column — a static "surface profile" of the
+      // brain silhouette, independent of on-screen size. Collision is just
+      // "has this particle's y crossed the surface at its column", which is
+      // exact (no tunnelling) and can't get stuck inside character gaps the
+      // way per-glyph pixel sampling could.
+      const topRowByCol = new Array(COLS).fill(-1);
+      for (let c = 0; c < COLS; c++) {
+        for (let r = 0; r < ROWS; r++) {
+          if (GRID[r][c] !== ' ') {
+            topRowByCol[c] = r;
+            break;
+          }
+        }
+      }
+
+      let vw = window.innerWidth;
+      let vh = window.innerHeight;
+      let naturalW = 0;
+      let naturalH = 0;
+
+      let brainRect = { left: 0, top: 0, width: 0, height: 0, bottom: 0 };
+      let cellW = 0;
+      let surfaceY = new Array(COLS).fill(Infinity);
+      let brainCenterX = 0;
+
+      // font-size/letter-spacing/line-height are fixed, so the text's
+      // unscaled intrinsic size is constant — measure it once, then fit it
+      // into the target box with a single UNIFORM scale. Using one scale
+      // factor (not independent x/y) keeps the aspect ratio identical at
+      // every viewport size instead of distorting on narrow/mobile widths.
+      function measureNatural() {
+        const prevTransform = brainText.style.transform;
+        brainText.style.transform = 'none';
+        const rect = brainText.getBoundingClientRect();
+        naturalW = rect.width;
+        naturalH = rect.height;
+        brainText.style.transform = prevTransform;
+      }
+
+      // Fixed target size — deliberately NOT based on vw/vh. The brain
+      // should render at the same absolute size/aspect ratio always; on
+      // smaller viewports the overflow:hidden crop just eats more of it
+      // rather than the whole thing shrinking to fit. Mobile gets its own
+      // (smaller) target box, same aspect ratio, chosen once at the first
+      // scale computation — matches the .brain-text mobile media query.
+      const MOBILE_BREAKPOINT = 720;
+      const TARGET_DESKTOP = { w: 760, h: 650 };
+      const TARGET_MOBILE = { w: 456, h: 390 };
+
+      function getTargetSize() {
+        return window.innerWidth <= MOBILE_BREAKPOINT ? TARGET_MOBILE : TARGET_DESKTOP;
+      }
+
+      function applyScale() {
+        if (!naturalW || !naturalH || brainText.dataset.scaled) return;
+        const target = getTargetSize();
+        const scale = Math.min(target.w / naturalW, target.h / naturalH);
+        brainText.style.transform = `scale(${scale})`;
+        brainText.dataset.scaled = 'true';
+      }
+
+      function buildCollisionMap() {
+        const rect = brainText.getBoundingClientRect();
+        brainRect = { left: rect.left, top: rect.top, width: rect.width, height: rect.height, bottom: rect.bottom };
+        if (rect.width < 2 || rect.height < 2) {
+          surfaceY.fill(Infinity);
+          return;
+        }
+        cellW = rect.width / COLS;
+        const cellH = rect.height / ROWS;
+        for (let c = 0; c < COLS; c++) {
+          surfaceY[c] = topRowByCol[c] < 0 ? Infinity : rect.top + topRowByCol[c] * cellH;
+        }
+        brainCenterX = rect.left + rect.width / 2;
+      }
+
+      function surfaceAt(x) {
+        if (!cellW) return null;
+        const col = Math.floor((x - brainRect.left) / cellW);
+        if (col < 0 || col >= COLS) return null;
+        const sy = surfaceY[col];
+        return isFinite(sy) ? sy : null;
+      }
+
+      function resize() {
+        vw = window.innerWidth;
+        vh = window.innerHeight;
+        const dpr = Math.min(2, window.devicePixelRatio || 1);
+        canvas.width = vw * dpr;
+        canvas.height = vh * dpr;
+        canvas.style.width = vw + 'px';
+        canvas.style.height = vh + 'px';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        if (!naturalW || !naturalH) measureNatural();
+        applyScale();
+        buildCollisionMap();
+      }
+
+      // Reveal the brain's characters in random order before the snow
+      // starts. Runs once — the persisted DOM carries the revealed state
+      // across client-side navigations, so it never replays.
+      let revealDone = false;
+      function revealBrain(onDone) {
+        const spans = Array.from(brainText.querySelectorAll('.ic'));
+        for (let i = spans.length - 1; i > 0; i--) {
+          const j = (Math.random() * (i + 1)) | 0;
+          const tmp = spans[i];
+          spans[i] = spans[j];
+          spans[j] = tmp;
+        }
+        const total = spans.length;
+        if (!total) {
+          onDone();
+          return;
+        }
+        const DURATION = 2400;
+        const start = performance.now();
+        let revealed = 0;
+        function frame(now) {
+          const t = Math.min(1, (now - start) / DURATION);
+          const target = Math.floor(t * total);
+          for (; revealed < target; revealed++) {
+            spans[revealed].style.opacity = '1';
+          }
+          if (t < 1) {
+            requestAnimationFrame(frame);
+          } else {
+            for (; revealed < total; revealed++) spans[revealed].style.opacity = '1';
+            onDone();
+          }
+        }
+        requestAnimationFrame(frame);
+      }
+
+      const GLYPHS = ['*', '✲', '⁕', '٭', '⁂'];
+      const FONTS = [
+        '"Geneva", sans-serif',
+        '"Cardo", serif',
+      ];
+
+      const BASE_GRAVITY = 620;
+      const MIN_SIZE = 9;
+      const MAX_SIZE = 31;
+      const BOUNCE_DAMPING = 0.5;
+      const MAX_PARTICLES = 150;
+      const SPAWN_INTERVAL = 260;
+      const MAX_LIFETIME = 16000;
+      let particles = [];
+      let lastSpawn = 0;
+      let lastFrame = performance.now();
+
+      function spawn(now) {
+        if (!revealDone) return;
+        if (particles.length >= MAX_PARTICLES) return;
+        const size = MIN_SIZE + Math.random() * (MAX_SIZE - MIN_SIZE);
+        const sizeNorm = (size - MIN_SIZE) / (MAX_SIZE - MIN_SIZE);
+        // Bigger falls slower, smaller falls quicker, plus independent
+        // per-particle variance so same-size flakes still fall differently.
+        const sizeFactor = 1.4 - sizeNorm * 0.8;
+        const variance = 0.8 + Math.random() * 0.4;
+        particles.push({
+          x: Math.random() * vw,
+          y: -20,
+          vx: (Math.random() - 0.5) * 30,
+          vy: 10 + Math.random() * 30,
+          size,
+          gravity: BASE_GRAVITY * sizeFactor * variance,
+          rot: Math.random() * Math.PI,
+          vrot: (Math.random() - 0.5) * 3,
+          glyph: GLYPHS[(Math.random() * GLYPHS.length) | 0],
+          font: FONTS[(Math.random() * FONTS.length) | 0],
+          born: now,
+        });
+      }
+
+      function step(now) {
+        const dt = Math.min(0.05, (now - lastFrame) / 1000);
+        lastFrame = now;
+
+        if (now - lastSpawn > SPAWN_INTERVAL) {
+          lastSpawn = now;
+          spawn(now);
+        }
+
+        ctx.clearRect(0, 0, vw, vh);
+        ctx.fillStyle = 'rgba(23, 24, 28, 0.82)';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+
+          p.vx += (Math.random() - 0.5) * 8 * dt;
+          p.vy += p.gravity * dt;
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.rot += p.vrot * dt;
+
+          const sy = surfaceAt(p.x);
+          if (sy !== null && p.y >= sy && p.y <= brainRect.bottom + 20) {
+            p.y = sy;
+            p.vy = -Math.abs(p.vy) * BOUNCE_DAMPING;
+            const dir = p.x < brainCenterX ? -1 : 1;
+            p.vx = dir * (50 + Math.random() * 50);
+          }
+
+          const expired = now - p.born > MAX_LIFETIME;
+          if (expired || p.y > vh + 40 || p.x < -40 || p.x > vw + 40) {
+            particles.splice(i, 1);
+            continue;
+          }
+
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.rot);
+          ctx.font = `${p.size}px ${p.font}`;
+          ctx.fillText(p.glyph, 0, 0);
+          ctx.restore();
+        }
+
+        requestAnimationFrame(step);
+      }
+
+      window.addEventListener('resize', resize);
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(resize);
+      }
+      resize();
+
+      // Don't reveal the brain or start the snow until the visitor is
+      // actually past the password gate.
+      const UNLOCK_KEY = 'site-unlocked';
+      let sceneStarted = false;
+      function startScene() {
+        if (sceneStarted) return;
+        sceneStarted = true;
+        resize();
+        revealBrain(() => {
+          revealDone = true;
+        });
+        requestAnimationFrame(step);
+      }
+
+      if (sessionStorage.getItem(UNLOCK_KEY) === 'true') {
+        startScene();
+      } else {
+        window.addEventListener('site-unlocked', startScene);
+      }
+
+      // --- fog transition: home (sharp) <-> subpage (dim + blurred) ---
+      // Driven entirely in JS rather than a CSS `transition`, since the
+      // body[data-page] attribute change happens inside Astro's
+      // view-transition swap callback and a plain CSS transition never gets
+      // a "before" frame to animate from there — it just snaps instantly.
+      const sceneEl = document.getElementById('brain-scene');
+      if (sceneEl) {
+        const HOME_OPACITY = 1;
+        const HOME_BLUR = 0;
+        const SUB_OPACITY = 0.28;
+        const SUB_BLUR = 1.5;
+        const FOG_DURATION = 70;
+
+        // Linear motion with a sinusoidal velocity ripple layered on top:
+        // quicker at the very start and end, slower (never stalled) through
+        // the middle — continuous throughout, like a lens racking focus,
+        // rather than easing to a near-stop partway through.
+        function fogEase(t) {
+          const A = 0.6;
+          return t + (A / (2 * Math.PI)) * Math.sin(2 * Math.PI * t);
+        }
+
+        let fogAnimId = null;
+        function currentBlur() {
+          const m = /blur\(([\d.]+)px\)/.exec(sceneEl.style.filter || '');
+          return m ? parseFloat(m[1]) : HOME_BLUR;
+        }
+
+        function applyFogState(isHome, animateIt, onComplete) {
+          const targetOpacity = isHome ? HOME_OPACITY : SUB_OPACITY;
+          const targetBlur = isHome ? HOME_BLUR : SUB_BLUR;
+
+          if (!animateIt) {
+            sceneEl.style.opacity = String(targetOpacity);
+            sceneEl.style.filter = `blur(${targetBlur}px)`;
+            if (onComplete) onComplete();
+            return;
+          }
+
+          if (fogAnimId !== null) cancelAnimationFrame(fogAnimId);
+          const startOpacity = parseFloat(sceneEl.style.opacity || '1');
+          const startBlur = currentBlur();
+          const start = performance.now();
+
+          function frame(now) {
+            const t = Math.min(1, (now - start) / FOG_DURATION);
+            const eased = fogEase(t);
+            sceneEl.style.opacity = String(startOpacity + (targetOpacity - startOpacity) * eased);
+            sceneEl.style.filter = `blur(${Math.max(0, startBlur + (targetBlur - startBlur) * eased)}px)`;
+            if (t < 1) {
+              fogAnimId = requestAnimationFrame(frame);
+            } else {
+              sceneEl.style.opacity = String(targetOpacity);
+              sceneEl.style.filter = `blur(${targetBlur}px)`;
+              fogAnimId = null;
+              if (onComplete) onComplete();
+            }
+          }
+          fogAnimId = requestAnimationFrame(frame);
+        }
+
+        applyFogState(document.body.dataset.page === 'home', false);
+
+        // astro:page-load fires after every client-side navigation (and once
+        // on first load). It's document-level, so it survives Astro
+        // replacing <body> wholesale on navigation — a MutationObserver
+        // bound to the original body node would not.
+        let hasLoadedOnce = false;
+        document.addEventListener('astro:page-load', () => {
+          const isHome = document.body.dataset.page === 'home';
+
+          if (!hasLoadedOnce) {
+            // First real page load — content is already server-rendered
+            // and visible, don't hide/flash it.
+            hasLoadedOnce = true;
+            applyFogState(isHome, false);
+            return;
+          }
+
+          // Hold the new page's content invisible until the fog finishes
+          // changing, so it appears right as the refocus settles instead of
+          // popping in immediately while the background is still shifting.
+          const contentEl = document.querySelector('.content');
+          if (contentEl) contentEl.style.opacity = '0';
+          applyFogState(isHome, true, () => {
+            if (contentEl) contentEl.style.opacity = '1';
+          });
+        });
+      }
+    }
+  }
+</script>

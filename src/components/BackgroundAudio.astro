@@ -1,0 +1,395 @@
+---
+const TRACK_SRC = '/audio/ambino.mp3';
+---
+
+<div id="bg-audio-block" style="display:contents" transition:persist="bg-audio-block">
+  <audio id="bg-audio-a" src={TRACK_SRC} preload="auto"></audio>
+  <audio id="bg-audio-b" src={TRACK_SRC} preload="auto"></audio>
+
+  <div class="volume-control">
+    <div class="volume-slider-wrap">
+      <input
+        id="volume-slider"
+        class="volume-slider"
+        type="range"
+        min="0"
+        max="1"
+        step="0.01"
+        value="0.35"
+        aria-label="Volume"
+      />
+    </div>
+    <button id="volume-icon" class="volume-icon" aria-label="Toggle background music" aria-pressed="true">
+      <svg id="icon-on" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="4 9 4 15 8 15 13 20 13 4 8 9 4 9"></polygon>
+        <path d="M16 8a5 5 0 0 1 0 8"></path>
+        <path d="M18.5 5.5a9 9 0 0 1 0 13"></path>
+      </svg>
+      <svg id="icon-off" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+        <polygon points="4 9 4 15 8 15 13 20 13 4 8 9 4 9"></polygon>
+        <line x1="16" y1="9" x2="22" y2="15"></line>
+        <line x1="22" y1="9" x2="16" y2="15"></line>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<style>
+  .volume-control {
+    position: fixed;
+    left: 24px;
+    bottom: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    z-index: 50;
+  }
+
+  .volume-icon {
+    flex: 0 0 auto;
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    color: var(--ink-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .volume-icon:hover,
+  .volume-icon:focus-visible {
+    color: var(--accent);
+  }
+
+  .volume-slider-wrap {
+    width: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    height: 0;
+    transition: height 0.25s ease;
+  }
+
+  .volume-control:hover .volume-slider-wrap,
+  .volume-control:focus-within .volume-slider-wrap {
+    height: 64px;
+  }
+
+  /* Minimal vertical slider: thin line track, small black rectangle thumb */
+  .volume-slider {
+    width: 60px;
+    height: 14px;
+    margin: 0;
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+    transform: rotate(-90deg);
+  }
+
+  .volume-slider::-webkit-slider-runnable-track {
+    height: 1px;
+    background: var(--ink-faint);
+  }
+
+  .volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 4px;
+    height: 14px;
+    background: var(--ink);
+    border-radius: 0;
+    margin-top: -6.5px;
+  }
+
+  .volume-slider::-moz-range-track {
+    height: 1px;
+    background: var(--ink-faint);
+    border: none;
+  }
+
+  .volume-slider::-moz-range-thumb {
+    width: 4px;
+    height: 14px;
+    background: var(--ink);
+    border: none;
+    border-radius: 0;
+  }
+
+  .volume-slider:hover::-webkit-slider-thumb,
+  .volume-slider:focus-visible::-webkit-slider-thumb {
+    background: var(--accent);
+  }
+
+  .volume-slider:hover::-moz-range-thumb,
+  .volume-slider:focus-visible::-moz-range-thumb {
+    background: var(--accent);
+  }
+</style>
+
+<script>
+  if (!(window as any).__bgAudioInit) {
+    (window as any).__bgAudioInit = true;
+
+    const a = document.getElementById('bg-audio-a') as HTMLAudioElement;
+    const b = document.getElementById('bg-audio-b') as HTMLAudioElement;
+    const iconBtn = document.getElementById('volume-icon') as HTMLButtonElement;
+    const iconOn = document.getElementById('icon-on') as unknown as HTMLElement;
+    const iconOff = document.getElementById('icon-off') as unknown as HTMLElement;
+    const slider = document.getElementById('volume-slider') as HTMLInputElement;
+
+    if (a && b && iconBtn && slider) {
+      const FADE_SECONDS = 2.5;
+      const FADE_IN_SECONDS = 2.5;
+      const VOLUME_KEY = 'bg-audio-volume';
+      const UNLOCK_KEY = 'site-unlocked';
+
+      let masterVolume = parseFloat(localStorage.getItem(VOLUME_KEY) ?? '0.35');
+      if (Number.isNaN(masterVolume)) masterVolume = 0.35;
+      // Mute is a per-session UI toggle only — never persisted, so a muted
+      // test session can't silently block playback on a later visit.
+      let muted = false;
+      let duckFactor = 1;
+      let duckDepth = 0;
+
+      let active = a;
+      let inactive = b;
+      let crossfading = false;
+      let activeMult = 0;
+      let inactiveMult = 0;
+      let started = false;
+
+      function effectiveVolume(mult: number) {
+        return muted ? 0 : masterVolume * duckFactor * mult;
+      }
+
+      function applyVolumes() {
+        active.volume = effectiveVolume(activeMult);
+        inactive.volume = effectiveVolume(inactiveMult);
+      }
+      applyVolumes();
+
+      // Drives a value from 0 to 1 over durationMs. Uses rAF for smooth
+      // intermediate frames when the tab is visible, but the FINAL state is
+      // always applied via setTimeout — rAF is throttled/paused in
+      // backgrounded tabs, and without this fallback a crossfade started
+      // right before the tab is backgrounded would never finish, leaving
+      // the old track to hit its natural end and stop for good.
+      function animate(
+        durationMs: number,
+        onTick: (t: number) => void,
+        onDone?: () => void,
+        easing: (t: number) => number = (t) => t
+      ) {
+        const startTime = performance.now();
+        let rafId: number | null = null;
+
+        function frame() {
+          const raw = Math.min(1, (performance.now() - startTime) / durationMs);
+          onTick(easing(raw));
+          if (raw < 1) rafId = requestAnimationFrame(frame);
+        }
+        rafId = requestAnimationFrame(frame);
+
+        setTimeout(() => {
+          if (rafId !== null) cancelAnimationFrame(rafId);
+          onTick(easing(1));
+          onDone && onDone();
+        }, durationMs);
+      }
+
+      // Very fast initial velocity, decelerating smoothly to the target with
+      // no overshoot. Used for the slider knob.
+      function easeOutExpo(t: number) {
+        return t >= 1 ? 1 : 1 - Math.pow(2, -10 * t);
+      }
+
+      // Zero velocity at both ends (gradual in, gradual out) — used for the
+      // loop crossfade so the track's start and end blend in gently rather
+      // than ramping at a constant, more noticeable rate.
+      function smoothstep(t: number) {
+        return t * t * (3 - 2 * t);
+      }
+
+      function startCrossfade() {
+        if (crossfading) return;
+        crossfading = true;
+        inactive.currentTime = 0;
+        inactive.play().catch(() => {});
+
+        animate(
+          FADE_SECONDS * 1000,
+          (t) => {
+            activeMult = 1 - t;
+            inactiveMult = t;
+            applyVolumes();
+          },
+          () => {
+            active.pause();
+            active.currentTime = 0;
+            const oldActive = active;
+            active = inactive;
+            inactive = oldActive;
+            activeMult = 1;
+            inactiveMult = 0;
+            applyVolumes();
+            crossfading = false;
+          },
+          smoothstep
+        );
+      }
+
+      function onTimeUpdate(el: HTMLAudioElement) {
+        return () => {
+          if (el !== active || crossfading) return;
+          if (!el.duration || !isFinite(el.duration)) return;
+          if (el.duration - el.currentTime <= FADE_SECONDS) {
+            startCrossfade();
+          }
+        };
+      }
+      a.addEventListener('timeupdate', onTimeUpdate(a));
+      b.addEventListener('timeupdate', onTimeUpdate(b));
+
+      // Safety net: if a track ever hits its natural end anyway (e.g. the
+      // tab was asleep long enough that even the setTimeout fallback above
+      // got delayed past the track boundary), hard-restart it rather than
+      // leaving playback stopped.
+      function onEnded(el: HTMLAudioElement) {
+        return () => {
+          if (el !== active) return;
+          crossfading = false;
+          el.currentTime = 0;
+          activeMult = 1;
+          inactiveMult = 0;
+          applyVolumes();
+          el.play().catch(() => {});
+        };
+      }
+      a.addEventListener('ended', onEnded(a));
+      b.addEventListener('ended', onEnded(b));
+
+      function fadeInAndPlay() {
+        if (started) return;
+        started = true;
+        activeMult = 0;
+        applyVolumes();
+        const p = active.play();
+
+        function rampUp() {
+          animate(FADE_IN_SECONDS * 1000, (t) => {
+            activeMult = t;
+            applyVolumes();
+          });
+        }
+
+        if (p) {
+          p.then(rampUp).catch(() => {
+            started = false;
+            const resume = () => {
+              started = true;
+              active.play().then(rampUp).catch(() => {});
+              document.removeEventListener('click', resume);
+              document.removeEventListener('keydown', resume);
+            };
+            document.addEventListener('click', resume, { once: true });
+            document.addEventListener('keydown', resume, { once: true });
+          });
+        } else {
+          rampUp();
+        }
+      }
+
+      function ensurePlaying() {
+        if (!started) {
+          fadeInAndPlay();
+        } else if (active.paused) {
+          active.play().catch(() => {});
+        }
+      }
+
+      // Start immediately if the site is already unlocked this session,
+      // otherwise wait for the password gate to dispatch 'site-unlocked'.
+      if (sessionStorage.getItem(UNLOCK_KEY) === 'true') {
+        fadeInAndPlay();
+      }
+      window.addEventListener('site-unlocked', () => fadeInAndPlay());
+
+      // --- ducking: fade out when other audio/video on the page plays ---
+      let duckStart = 1;
+      function fadeDuck(target: number, ms = 600) {
+        duckStart = duckFactor;
+        animate(ms, (t) => {
+          duckFactor = duckStart + (target - duckStart) * t;
+          applyVolumes();
+        });
+      }
+
+      document.addEventListener(
+        'play',
+        (e) => {
+          const t = e.target;
+          if (t === a || t === b || !(t instanceof HTMLMediaElement)) return;
+          duckDepth++;
+          fadeDuck(0.15);
+        },
+        true
+      );
+
+      function maybeUnduck(e: Event) {
+        const t = e.target;
+        if (t === a || t === b || !(t instanceof HTMLMediaElement)) return;
+        duckDepth = Math.max(0, duckDepth - 1);
+        if (duckDepth === 0) fadeDuck(1);
+      }
+      document.addEventListener('pause', maybeUnduck, true);
+      document.addEventListener('ended', maybeUnduck, true);
+
+      // --- volume control UI ---
+      function updateIcon() {
+        const isMuted = muted || masterVolume === 0;
+        iconOn.style.display = isMuted ? 'none' : 'block';
+        iconOff.style.display = isMuted ? 'block' : 'none';
+        iconBtn.setAttribute('aria-pressed', String(!isMuted));
+      }
+
+      function animateSliderTo(target: number, ms = 320) {
+        const sliderAnimStart = parseFloat(slider.value);
+        animate(
+          ms,
+          (t) => {
+            const v = sliderAnimStart + (target - sliderAnimStart) * t;
+            slider.value = String(Math.min(1, Math.max(0, v)));
+          },
+          undefined,
+          easeOutExpo
+        );
+      }
+
+      slider.value = String(muted ? 0 : masterVolume);
+      updateIcon();
+
+      iconBtn.addEventListener('click', () => {
+        muted = !muted;
+        applyVolumes();
+        updateIcon();
+        animateSliderTo(muted ? 0 : masterVolume);
+        ensurePlaying();
+      });
+
+      slider.addEventListener('input', () => {
+        masterVolume = parseFloat(slider.value);
+        muted = masterVolume === 0;
+        localStorage.setItem(VOLUME_KEY, String(masterVolume));
+        applyVolumes();
+        updateIcon();
+        ensurePlaying();
+      });
+    }
+  }
+</script>

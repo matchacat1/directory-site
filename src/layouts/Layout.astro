@@ -1,0 +1,66 @@
+---
+import '../styles/global.css';
+import { ClientRouter } from 'astro:transitions';
+import BackgroundAudio from '../components/BackgroundAudio.astro';
+import PasswordGate from '../components/PasswordGate.astro';
+import BrainScene from '../components/BrainScene.astro';
+
+interface Props {
+  title: string;
+  active: string;
+}
+
+const { title, active } = Astro.props;
+
+const SITE_TITLE = 'Daniel Hong';
+
+const DIRECTORY = [
+  { key: 'projects', label: 'Projects', href: '/projects' },
+  { key: 'music', label: 'Music', href: '/music' },
+  { key: 'about', label: 'About', href: '/about' },
+  { key: 'contact', label: 'Contact', href: '/contact' },
+];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={`${SITE_TITLE} — personal site`} />
+    <title>{active === 'home' ? SITE_TITLE : `${title} — ${SITE_TITLE}`}</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <ClientRouter />
+  </head>
+  <body data-page={active}>
+    <BrainScene />
+    <PasswordGate />
+
+    <div class="shell">
+      <aside class="directory">
+        <a class="site-title" href="/" aria-current={active === 'home' ? 'page' : undefined}>{SITE_TITLE}</a>
+        <nav>
+          {DIRECTORY.map((section) => (
+            <div class="dir-section">
+              <a
+                class="dir-heading"
+                href={section.href}
+                aria-current={active === section.key ? 'page' : undefined}
+              >
+                {section.label}
+              </a>
+            </div>
+          ))}
+        </nav>
+      </aside>
+
+      <div class="header-gap" aria-hidden="true"></div>
+
+      <main class="content">
+        <slot />
+      </main>
+    </div>
+
+    <BackgroundAudio />
+  </body>
+</html>
