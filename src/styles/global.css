@@ -206,6 +206,25 @@ a {
   margin: 0 0 28px;
 }
 
+/* Softly-blurred cover art behind a track's detail-page copy. The blur
+   alone still leaves a rectangular extent, so a radial mask feathers the
+   image itself to transparent well before that edge — the actual fade
+   into the page background, rather than just a soft-focus rectangle.
+   Sits at z-index -1 within .content's own stacking context, so it stays
+   behind the text but still above the fixed ascii-brain background layer. */
+.track-backdrop {
+  position: absolute;
+  inset: -30px;
+  z-index: -1;
+  background-size: cover;
+  background-position: center;
+  filter: blur(16px);
+  opacity: 0.22;
+  -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 72%);
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 72%);
+  pointer-events: none;
+}
+
 .content p {
   margin: 0 0 16px;
   max-width: 62ch;
@@ -264,6 +283,7 @@ a {
 }
 
 .track-nav-link {
+  position: relative;
   font-family: var(--font-mono);
   font-size: 12px;
   text-decoration: none;
@@ -278,6 +298,34 @@ a {
 .track-nav-next {
   margin-left: auto;
   text-align: right;
+}
+
+/* Cover-art peek on hover — a plain fade and rise into view above the link. */
+.track-nav-preview {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  width: 72px;
+  height: 72px;
+  margin-bottom: 12px;
+  background-size: cover;
+  background-position: center;
+  border: 1px solid var(--ink);
+  background-color: #fafaf8;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.22s ease, transform 0.22s ease;
+  pointer-events: none;
+}
+
+.track-nav-next .track-nav-preview {
+  left: auto;
+  right: 0;
+}
+
+.track-nav-link:hover .track-nav-preview {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .back-link {
@@ -319,7 +367,8 @@ a {
   justify-content: center;
   aspect-ratio: 1 / 1;
   width: 100%;
-  border: 1px solid var(--line);
+  overflow: hidden;
+  border: 1px solid var(--ink);
   background: #fafaf8;
   color: var(--ink-faint);
   font-family: var(--font-mono);
@@ -328,8 +377,17 @@ a {
   text-decoration: none;
 }
 
+.project-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .project-image:hover {
   border-color: var(--accent);
+}
+
+.project-image:hover:not(:has(img)) {
   color: var(--accent);
 }
 

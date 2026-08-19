@@ -10,6 +10,8 @@ const next = musicTracks[(idx + 1) % musicTracks.length];
 ---
 
 <Layout title={track.title} active="music">
+  <div class="track-backdrop" style={`background-image: url(${track.image})`} aria-hidden="true"></div>
+
   <h1>{track.title}</h1>
 
   <p>
@@ -19,9 +21,15 @@ const next = musicTracks[(idx + 1) % musicTracks.length];
   </p>
 
   <nav class="track-nav" aria-label="Other music projects">
-    <a class="track-nav-link track-nav-prev" href={`/music/${prev.slug}`}>← {prev.title}</a>
-    <a class="track-nav-link track-nav-next" href={`/music/${next.slug}`}>{next.title} →</a>
+    <a class="track-nav-link track-nav-prev" href={`/music/${prev.slug}`}>
+      <span class="track-nav-preview" style={`background-image: url(${prev.image})`} aria-hidden="true"></span>
+      ← {prev.title}
+    </a>
+    <a class="track-nav-link track-nav-next" href={`/music/${next.slug}`}>
+      <span class="track-nav-preview" style={`background-image: url(${next.image})`} aria-hidden="true"></span>
+      {next.title} →
+    </a>
   </nav>
 
-  <a class="back-link" href="/music">← Back to Music</a>
+  <a class="back-link" href="/music">← back to Music</a>
 </Layout>

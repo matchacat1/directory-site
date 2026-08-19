@@ -1,5 +1,5 @@
 export const musicTracks = [
-  { slug: 'hoshia-tone', title: 'hoshia tone', body: 'Electronica' },
-  { slug: 'etona', title: 'etona', body: 'Ambient' },
-  { slug: 'jincha', title: 'jincha', body: 'Neo-jazz and instrumental' },
+  { slug: 'hoshia-tone', title: 'hoshia tone', body: 'Electronica', image: '/images/music/hoshia-tone.jpg' },
+  { slug: 'etona', title: 'etona', body: 'Ambient', image: '/images/music/etona.jpg' },
+  { slug: 'jincha', title: 'jincha', body: 'Neo-jazz and instrumental', image: '/images/music/jincha.jpg' },
 ];

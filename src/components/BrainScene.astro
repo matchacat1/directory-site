@@ -79,10 +79,14 @@ const gridJson = JSON.stringify(brainData.grid);
 
   /* Individual ink characters — hidden until the load-in reveal switches
      them on in random order. :global() because set:html content bypasses
-     Astro's scoped-style attribute. */
+     Astro's scoped-style attribute. No transition here on purpose — with
+     up to ~3800 of these, a per-span CSS transition means hundreds can be
+     mid-animation at once, which is enough concurrent compositing work to
+     visibly jank the reveal on mobile GPUs. The staggered reveal timing
+     (random order, spread over the JS-driven duration below) already reads
+     as an animated materialize effect without it. */
   :global(.brain-text .ic) {
     opacity: 0;
-    transition: opacity 0.15s ease;
   }
 
   .brain-canvas {
@@ -168,6 +172,13 @@ const gridJson = JSON.stringify(brainData.grid);
         brainText.dataset.scaled = 'true';
       }
 
+      // A row's *box* top (row index × cellH) sits above where the glyph's
+      // ink actually starts — line-height leading puts empty space above
+      // each character. Left uncorrected, particles visually bounce off
+      // that empty space instead of the brain's silhouette. Shifting the
+      // surface down by a fraction of a row aligns collision with the ink.
+      const SURFACE_ROW_OFFSET = 0.05;
+
       function buildCollisionMap() {
         const rect = brainText.getBoundingClientRect();
         brainRect = { left: rect.left, top: rect.top, width: rect.width, height: rect.height, bottom: rect.bottom };
@@ -178,20 +189,44 @@ const gridJson = JSON.stringify(brainData.grid);
         cellW = rect.width / COLS;
         const cellH = rect.height / ROWS;
         for (let c = 0; c < COLS; c++) {
-          surfaceY[c] = topRowByCol[c] < 0 ? Infinity : rect.top + topRowByCol[c] * cellH;
+          surfaceY[c] = topRowByCol[c] < 0 ? Infinity : rect.top + (topRowByCol[c] + SURFACE_ROW_OFFSET) * cellH;
         }
         brainCenterX = rect.left + rect.width / 2;
       }
 
+      // Linearly interpolate between the two nearest columns rather than
+      // snapping to one. The brain's silhouette is a curved/organic shape
+      // approximated by only 120 columns, so adjacent columns can have
+      // noticeably different surface heights — a hard snap makes a particle
+      // drifting sideways see the bounce line jump discontinuously right as
+      // it crosses a column boundary, which reads as an inconsistent hitbox.
       function surfaceAt(x) {
         if (!cellW) return null;
-        const col = Math.floor((x - brainRect.left) / cellW);
-        if (col < 0 || col >= COLS) return null;
-        const sy = surfaceY[col];
+        const colF = (x - brainRect.left) / cellW - 0.5;
+        const col0 = Math.floor(colF);
+        const col1 = col0 + 1;
+        const sy0 = col0 >= 0 && col0 < COLS ? surfaceY[col0] : Infinity;
+        const sy1 = col1 >= 0 && col1 < COLS ? surfaceY[col1] : Infinity;
+        if (isFinite(sy0) && isFinite(sy1)) {
+          const t = colF - col0;
+          return sy0 + (sy1 - sy0) * t;
+        }
+        // One (or both) neighbors have no surface at all — a silhouette
+        // edge, or a gap between separate character clusters (individual
+        // "hair" strands, etc). Blending with an infinite neighbor would
+        // either cliff to the other's raw height or extend the surface into
+        // empty space, so just fall back to whichever single column the
+        // point actually sits over.
+        const col = Math.round(colF + 0.5);
+        const sy = col >= 0 && col < COLS ? surfaceY[col] : Infinity;
         return isFinite(sy) ? sy : null;
       }
 
-      function resize() {
+      // recomputeCollision is false for the cheap part of a resize (just
+      // the canvas backing store). Rebuilding the collision map forces a
+      // synchronous layout read across ~4000 characters, so it's debounced
+      // separately below rather than run on every single resize event.
+      function resize(recomputeCollision) {
         vw = window.innerWidth;
         vh = window.innerHeight;
         const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -200,9 +235,32 @@ const gridJson = JSON.stringify(brainData.grid);
         canvas.style.width = vw + 'px';
         canvas.style.height = vh + 'px';
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        if (!recomputeCollision) return;
         if (!naturalW || !naturalH) measureNatural();
         applyScale();
         buildCollisionMap();
+      }
+
+      // Mobile browser chrome collapsing/expanding on scroll fires a burst
+      // of resize events for a single logical change. Debouncing the
+      // (expensive) collision rebuild to run once ~150ms after the burst
+      // settles avoids doing it on every event, while still guaranteeing
+      // one final rebuild against the actual settled layout — unlike only
+      // reacting to width changes, this can't leave a stale collision map
+      // baked in if the first read happened to land mid-transition.
+      let resizeRaf = null;
+      let collisionRebuildTimer = null;
+      function onWindowResize() {
+        if (resizeRaf !== null) return;
+        resizeRaf = requestAnimationFrame(() => {
+          resizeRaf = null;
+          resize(false);
+          if (collisionRebuildTimer !== null) clearTimeout(collisionRebuildTimer);
+          collisionRebuildTimer = setTimeout(() => {
+            collisionRebuildTimer = null;
+            resize(true);
+          }, 150);
+        });
       }
 
       // Reveal the brain's characters in random order before the snow
@@ -305,9 +363,15 @@ const gridJson = JSON.stringify(brainData.grid);
           p.y += p.vy * dt;
           p.rot += p.vrot * dt;
 
+          // Glyphs are drawn centered on p.y (textBaseline: 'middle'), so
+          // colliding on the center alone lets roughly the bottom half of
+          // each glyph render past the surface before it bounces — worse
+          // for bigger particles. Using the leading (bottom) edge instead
+          // keeps the bounce point consistent regardless of particle size.
+          const leadingEdge = p.y + p.size / 2;
           const sy = surfaceAt(p.x);
-          if (sy !== null && p.y >= sy && p.y <= brainRect.bottom + 20) {
-            p.y = sy;
+          if (sy !== null && leadingEdge >= sy && leadingEdge <= brainRect.bottom + 20) {
+            p.y = sy - p.size / 2;
             p.vy = -Math.abs(p.vy) * BOUNCE_DAMPING;
             const dir = p.x < brainCenterX ? -1 : 1;
             p.vx = dir * (50 + Math.random() * 50);
@@ -330,11 +394,11 @@ const gridJson = JSON.stringify(brainData.grid);
         requestAnimationFrame(step);
       }
 
-      window.addEventListener('resize', resize);
+      window.addEventListener('resize', onWindowResize);
       if (document.fonts && document.fonts.ready) {
-        document.fonts.ready.then(resize);
+        document.fonts.ready.then(() => resize(true));
       }
-      resize();
+      resize(true);
 
       // Don't reveal the brain or start the snow until the visitor is
       // actually past the password gate.
@@ -343,7 +407,7 @@ const gridJson = JSON.stringify(brainData.grid);
       function startScene() {
         if (sceneStarted) return;
         sceneStarted = true;
-        resize();
+        resize(true);
         revealBrain(() => {
           revealDone = true;
         });

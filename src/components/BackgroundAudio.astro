@@ -6,7 +6,7 @@ const TRACK_SRC = '/audio/ambino.mp3';
   <audio id="bg-audio-a" src={TRACK_SRC} preload="auto"></audio>
   <audio id="bg-audio-b" src={TRACK_SRC} preload="auto"></audio>
 
-  <div class="volume-control">
+  <div id="volume-control" class="volume-control">
     <div class="volume-slider-wrap">
       <input
         id="volume-slider"
@@ -76,7 +76,8 @@ const TRACK_SRC = '/audio/ambino.mp3';
   }
 
   .volume-control:hover .volume-slider-wrap,
-  .volume-control:focus-within .volume-slider-wrap {
+  .volume-control:focus-within .volume-slider-wrap,
+  .volume-control.is-expanded .volume-slider-wrap {
     height: 64px;
   }
 
@@ -90,6 +91,12 @@ const TRACK_SRC = '/audio/ambino.mp3';
     background: transparent;
     cursor: pointer;
     transform: rotate(-90deg);
+    /* Without this, iOS can still claim the touch as its own native slider
+       drag at the compositor level before our touchstart/touchmove
+       handlers get a meaningful say — preventDefault() alone isn't a
+       reliable guarantee. This hands touch handling on this element to
+       JS entirely. */
+    touch-action: none;
   }
 
   .volume-slider::-webkit-slider-runnable-track {
@@ -138,12 +145,70 @@ const TRACK_SRC = '/audio/ambino.mp3';
 
     const a = document.getElementById('bg-audio-a') as HTMLAudioElement;
     const b = document.getElementById('bg-audio-b') as HTMLAudioElement;
+    const volumeControl = document.getElementById('volume-control') as HTMLElement;
     const iconBtn = document.getElementById('volume-icon') as HTMLButtonElement;
     const iconOn = document.getElementById('icon-on') as unknown as HTMLElement;
     const iconOff = document.getElementById('icon-off') as unknown as HTMLElement;
     const slider = document.getElementById('volume-slider') as HTMLInputElement;
 
-    if (a && b && iconBtn && slider) {
+    if (a && b && volumeControl && iconBtn && slider) {
+      // The slider only expands on CSS :hover, which touch devices never
+      // trigger reliably — without this it's an unreachable 0-height
+      // control on mobile. Tapping anywhere in the control keeps it open;
+      // tapping elsewhere on the page closes it again, mimicking hover-out.
+      volumeControl.addEventListener('click', () => {
+        volumeControl.classList.add('is-expanded');
+      });
+      document.addEventListener('click', (e) => {
+        if (!volumeControl.contains(e.target as Node)) {
+          volumeControl.classList.remove('is-expanded');
+        }
+      });
+
+      // The slider is visually rotated 90° via CSS. A native range input's
+      // own touch handling doesn't reliably re-project touch coordinates
+      // through that rotation on mobile browsers, so dragging it by touch
+      // effectively does nothing. Driving the value from touch position
+      // ourselves — measured against the wrapper, which is NOT rotated and
+      // so is exactly what's on screen — sidesteps that while keeping the
+      // native (working) mouse/keyboard behavior on desktop untouched.
+      const sliderWrap = slider.closest('.volume-slider-wrap') as HTMLElement | null;
+      let touchDragging = false;
+      function setVolumeFromTouchY(clientY: number) {
+        if (!sliderWrap) return;
+        const rect = sliderWrap.getBoundingClientRect();
+        if (rect.height < 2) return;
+        const t = 1 - (clientY - rect.top) / rect.height;
+        slider.value = Math.min(1, Math.max(0, t)).toFixed(2);
+        slider.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      slider.addEventListener(
+        'touchstart',
+        (e) => {
+          // Without this, the native (rotation-confused) touch-drag can
+          // still partially engage alongside our own handling, and the two
+          // fight over the input's value for the rest of the gesture —
+          // which is exactly what an inconsistent/stuck-mute slider looks
+          // like. Suppressing it from the first touch avoids that entirely.
+          e.preventDefault();
+          touchDragging = true;
+          setVolumeFromTouchY(e.touches[0].clientY);
+        },
+        { passive: false }
+      );
+      slider.addEventListener(
+        'touchmove',
+        (e) => {
+          if (!touchDragging) return;
+          e.preventDefault();
+          setVolumeFromTouchY(e.touches[0].clientY);
+        },
+        { passive: false }
+      );
+      slider.addEventListener('touchend', () => {
+        touchDragging = false;
+      });
+
       const FADE_SECONDS = 2.5;
       const FADE_IN_SECONDS = 2.5;
       const VOLUME_KEY = 'bg-audio-volume';
@@ -164,13 +229,49 @@ const TRACK_SRC = '/audio/ambino.mp3';
       let inactiveMult = 0;
       let started = false;
 
+      // iOS Safari silently ignores HTMLMediaElement.volume — physical
+      // volume buttons are the only thing allowed to control loudness
+      // there, so setting `.volume` in JS is a no-op on that platform. The
+      // standard workaround is routing playback through the Web Audio API
+      // and controlling a GainNode instead, which iOS does respect.
+      const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext;
+      let aGain: GainNode | null = null;
+      let bGain: GainNode | null = null;
+      if (AudioContextCtor) {
+        try {
+          const audioCtx = new AudioContextCtor();
+          aGain = audioCtx.createGain();
+          bGain = audioCtx.createGain();
+          audioCtx.createMediaElementSource(a).connect(aGain).connect(audioCtx.destination);
+          audioCtx.createMediaElementSource(b).connect(bGain).connect(audioCtx.destination);
+          const resumeAudioCtx = () => {
+            audioCtx.resume().catch(() => {});
+          };
+          window.addEventListener('site-unlocked', resumeAudioCtx, { once: true });
+          document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) resumeAudioCtx();
+          });
+        } catch {
+          aGain = null;
+          bGain = null;
+        }
+      }
+
       function effectiveVolume(mult: number) {
         return muted ? 0 : masterVolume * duckFactor * mult;
       }
 
       function applyVolumes() {
-        active.volume = effectiveVolume(activeMult);
-        inactive.volume = effectiveVolume(inactiveMult);
+        const activeVol = effectiveVolume(activeMult);
+        const inactiveVol = effectiveVolume(inactiveMult);
+        if (aGain && bGain) {
+          (active === a ? aGain : bGain).gain.value = activeVol;
+          (inactive === a ? aGain : bGain).gain.value = inactiveVol;
+        } else {
+          // Fallback for browsers without Web Audio API support.
+          active.volume = activeVol;
+          inactive.volume = inactiveVol;
+        }
       }
       applyVolumes();
 
@@ -320,6 +421,21 @@ const TRACK_SRC = '/audio/ambino.mp3';
       }
       window.addEventListener('site-unlocked', () => fadeInAndPlay());
 
+      // Pause while the tab is hidden/backgrounded rather than letting it
+      // keep playing behind the scenes, and pick back up when it's visible
+      // again. Both elements are resumed — whichever is currently inactive
+      // is already sitting at volume 0 from the normal crossfade bookkeeping,
+      // so resuming it is silent and just keeps it ready for the next swap.
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          a.pause();
+          b.pause();
+        } else if (started) {
+          a.play().catch(() => {});
+          b.play().catch(() => {});
+        }
+      });
+
       // --- ducking: fade out when other audio/video on the page plays ---
       let duckStart = 1;
       function fadeDuck(target: number, ms = 600) {
@@ -374,12 +490,21 @@ const TRACK_SRC = '/audio/ambino.mp3';
       slider.value = String(muted ? 0 : masterVolume);
       updateIcon();
 
-      iconBtn.addEventListener('click', () => {
+      function toggleMute() {
         muted = !muted;
         applyVolumes();
         updateIcon();
         animateSliderTo(muted ? 0 : masterVolume);
         ensurePlaying();
+      }
+
+      iconBtn.addEventListener('click', toggleMute);
+
+      window.addEventListener('keydown', (e) => {
+        if (e.key.toLowerCase() !== 'm' || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+        const target = e.target as HTMLElement | null;
+        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+        toggleMute();
       });
 
       slider.addEventListener('input', () => {
