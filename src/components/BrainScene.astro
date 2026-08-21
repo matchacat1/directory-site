@@ -400,9 +400,6 @@ const gridJson = JSON.stringify(brainData.grid);
       }
       resize(true);
 
-      // Don't reveal the brain or start the snow until the visitor is
-      // actually past the password gate.
-      const UNLOCK_KEY = 'site-unlocked';
       let sceneStarted = false;
       function startScene() {
         if (sceneStarted) return;
@@ -414,11 +411,7 @@ const gridJson = JSON.stringify(brainData.grid);
         requestAnimationFrame(step);
       }
 
-      if (sessionStorage.getItem(UNLOCK_KEY) === 'true') {
-        startScene();
-      } else {
-        window.addEventListener('site-unlocked', startScene);
-      }
+      startScene();
 
       // --- fog transition: home (sharp) <-> subpage (dim + blurred) ---
       // Driven entirely in JS rather than a CSS `transition`, since the

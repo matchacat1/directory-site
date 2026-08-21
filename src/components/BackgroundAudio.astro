@@ -212,7 +212,6 @@ const TRACK_SRC = '/audio/ambino.mp3';
       const FADE_SECONDS = 2.5;
       const FADE_IN_SECONDS = 2.5;
       const VOLUME_KEY = 'bg-audio-volume';
-      const UNLOCK_KEY = 'site-unlocked';
 
       let masterVolume = parseFloat(localStorage.getItem(VOLUME_KEY) ?? '0.35');
       if (Number.isNaN(masterVolume)) masterVolume = 0.35;
@@ -247,7 +246,11 @@ const TRACK_SRC = '/audio/ambino.mp3';
           const resumeAudioCtx = () => {
             audioCtx.resume().catch(() => {});
           };
-          window.addEventListener('site-unlocked', resumeAudioCtx, { once: true });
+          // No password gate to supply a guaranteed first user gesture
+          // anymore — resume on whichever of these fires first.
+          document.addEventListener('click', resumeAudioCtx, { once: true });
+          document.addEventListener('keydown', resumeAudioCtx, { once: true });
+          document.addEventListener('touchstart', resumeAudioCtx, { once: true, passive: true });
           document.addEventListener('visibilitychange', () => {
             if (!document.hidden) resumeAudioCtx();
           });
@@ -414,12 +417,7 @@ const TRACK_SRC = '/audio/ambino.mp3';
         }
       }
 
-      // Start immediately if the site is already unlocked this session,
-      // otherwise wait for the password gate to dispatch 'site-unlocked'.
-      if (sessionStorage.getItem(UNLOCK_KEY) === 'true') {
-        fadeInAndPlay();
-      }
-      window.addEventListener('site-unlocked', () => fadeInAndPlay());
+      fadeInAndPlay();
 
       // Pause while the tab is hidden/backgrounded rather than letting it
       // keep playing behind the scenes, and pick back up when it's visible
