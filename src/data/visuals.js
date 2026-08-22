@@ -14,7 +14,7 @@ export const visuals = [
   {
     slug: 'fog',
     title: 'Fog',
-    body: 'Generative fog tool. Runs on Blender',
+    body: 'Generative fog tool. Runs on Blender & TouchDesigner',
     image: '/images/visuals/fog-poster.jpg',
   },
 ];
