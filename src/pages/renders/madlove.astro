@@ -9,7 +9,7 @@ const next = visuals[(idx + 1) % visuals.length];
 const showNav = visuals.length > 1;
 ---
 
-<Layout title="Madlove" active="visuals">
+<Layout title="Madlove" active="renders">
   <div class="track-backdrop" style="background-image: url(/images/visuals/madlove-poster.jpg)" aria-hidden="true"></div>
 
   <h1>Madlove</h1>
@@ -28,19 +28,19 @@ const showNav = visuals.length > 1;
   <p>Audio-reactive visual tool based on transient detection from audio source. Runs on TouchDesigner</p>
 
   {showNav && (
-    <nav class="track-nav" aria-label="Other visuals">
-      <a class="track-nav-link track-nav-prev" href={`/visuals/${prev.slug}`}>
+    <nav class="track-nav" aria-label="Other renders">
+      <a class="track-nav-link track-nav-prev" href={`/renders/${prev.slug}`}>
         <span class="track-nav-preview" style={`background-image: url(${prev.image})`} aria-hidden="true"></span>
         ← {prev.title}
       </a>
-      <a class="track-nav-link track-nav-next" href={`/visuals/${next.slug}`}>
+      <a class="track-nav-link track-nav-next" href={`/renders/${next.slug}`}>
         <span class="track-nav-preview" style={`background-image: url(${next.image})`} aria-hidden="true"></span>
         {next.title} →
       </a>
     </nav>
   )}
 
-  <a class="back-link" href="/visuals">← back to Visuals</a>
+  <a class="back-link" href="/renders">← back to Renders</a>
 </Layout>
 
 <style>

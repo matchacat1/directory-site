@@ -450,20 +450,26 @@ a {
 .status-badge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 8px;
   color: var(--ink-soft);
   border: 1px solid var(--line);
-  padding: 2px 7px;
+  padding: 1px 6px;
   border-radius: 999px;
   white-space: nowrap;
+  /* Nudges the pill up from the geometric line-box center (where flex
+     align-items:center on .page-title-row places it) to the title text's
+     optical center — a bold sans/mono capital-plus-lowercase mix like
+     "Faber" reads visually top-heavy, so a geometric mid-point sits a
+     couple px lower than where the eye expects the pill to line up. */
+  transform: translateY(-1.5px);
 }
 
 .status-dot {
   flex: 0 0 auto;
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
   background: var(--accent);
   animation: status-pulse 1.8s ease-in-out infinite;

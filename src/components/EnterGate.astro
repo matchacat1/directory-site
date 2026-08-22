@@ -7,7 +7,7 @@
 ---
 
 <div id="enter-gate" class="enter-gate" transition:persist="enter-gate">
-  <button id="enter-gate-btn" class="enter-gate-btn" type="button">Enter</button>
+  <button id="enter-gate-btn" class="enter-gate-btn" type="button">Hello</button>
 </div>
 
 <style>
@@ -16,10 +16,13 @@
     inset: 0;
     z-index: 9999;
     background: rgba(255, 255, 255, 0.55);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
     display: flex;
     align-items: center;
     justify-content: center;
     opacity: 0;
+    cursor: pointer;
     transition: opacity 0.5s ease;
   }
 
@@ -34,7 +37,7 @@
 
   .enter-gate-btn {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 18px;
     font-weight: 700;
     letter-spacing: 0.04em;
     color: var(--ink);

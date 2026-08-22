@@ -2,11 +2,11 @@
 import Layout from '../../layouts/Layout.astro';
 import { visuals } from '../../data/visuals';
 
-const items = visuals.map((v) => ({ href: `/visuals/${v.slug}`, title: v.title, body: v.body, image: v.image }));
+const items = visuals.map((v) => ({ href: `/renders/${v.slug}`, title: v.title, body: v.body, image: v.image }));
 ---
 
-<Layout title="Visuals" active="visuals">
-  <h1>Visuals</h1>
+<Layout title="Renders" active="renders">
+  <h1>Renders</h1>
 
   {items.length > 0 ? (
     <div class="project-grid">

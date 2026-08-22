@@ -4,6 +4,6 @@ export const projects = [
     title: 'Faber',
     body: 'Semi-modular wavetable synthesizer',
     image: '/images/projects/faber.png',
-    status: 'Currently working',
+    status: 'In development',
   },
 ];

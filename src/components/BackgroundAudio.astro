@@ -127,6 +127,8 @@ const DEFAULT_TRACK = audioTracks[0];
      control (the "Now playing" link included) should not, since that's
      a separate, unrelated click target now. */
   .volume-control:has(.volume-icon:hover) .volume-slider-wrap,
+  .volume-control:has(.volume-slider:hover) .volume-slider-wrap,
+  .volume-control:has(.volume-slider:active) .volume-slider-wrap,
   .volume-control:focus-within .volume-slider-wrap,
   .volume-control.is-expanded .volume-slider-wrap {
     height: 64px;
@@ -218,6 +220,21 @@ const DEFAULT_TRACK = audioTracks[0];
           volumeControl.classList.remove('is-expanded');
         }
       });
+
+      // On mouse-driven devices, clicking/dragging the slider leaves it
+      // focused, and :focus-within alone would then hold the slider open
+      // indefinitely even after the cursor moves away. Dropping focus (and
+      // the touch-only is-expanded latch) as soon as the pointer leaves the
+      // control collapses it back down, matching hover-driven expectations.
+      // Left untouched on touch devices, where there's no hover to leave.
+      if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+        volumeControl.addEventListener('mouseleave', () => {
+          volumeControl.classList.remove('is-expanded');
+          if (document.activeElement === slider) {
+            slider.blur();
+          }
+        });
+      }
 
       // The slider is visually rotated 90° via CSS. A native range input's
       // own touch handling doesn't reliably re-project touch coordinates
@@ -481,6 +498,7 @@ const DEFAULT_TRACK = audioTracks[0];
         userPaused = false;
         currentTrack = track;
         setNowPlayingDisplay(track);
+        nowPlaying?.classList.add('is-visible');
 
         if (!started) {
           a.src = track.src;
@@ -639,8 +657,11 @@ const DEFAULT_TRACK = audioTracks[0];
         userPaused = false;
         if (!started) {
           fadeInAndPlay();
-        } else if (active.paused) {
-          active.play().catch(() => {});
+        } else {
+          if (active.paused) {
+            active.play().catch(() => {});
+          }
+          nowPlaying?.classList.add('is-visible');
         }
         dispatchState();
       }
@@ -649,6 +670,7 @@ const DEFAULT_TRACK = audioTracks[0];
         userPaused = true;
         a.pause();
         b.pause();
+        nowPlaying?.classList.remove('is-visible');
         dispatchState();
       }
 

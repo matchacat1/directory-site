@@ -9,7 +9,7 @@ const next = visuals[(idx + 1) % visuals.length];
 const showNav = visuals.length > 1;
 ---
 
-<Layout title="Voxelspin" active="visuals">
+<Layout title="Voxelspin" active="renders">
   <div class="track-backdrop" style="background-image: url(/images/visuals/voxelspin-poster.jpg)" aria-hidden="true"></div>
 
   <h1>Voxelspin</h1>
@@ -28,19 +28,19 @@ const showNav = visuals.length > 1;
   <p>Geometric grid mapped to frequency bins, with hue and depth driven by real-time pitch and amplitude analysis. Runs on TouchDesigner.</p>
 
   {showNav && (
-    <nav class="track-nav" aria-label="Other visuals">
-      <a class="track-nav-link track-nav-prev" href={`/visuals/${prev.slug}`}>
+    <nav class="track-nav" aria-label="Other renders">
+      <a class="track-nav-link track-nav-prev" href={`/renders/${prev.slug}`}>
         <span class="track-nav-preview" style={`background-image: url(${prev.image})`} aria-hidden="true"></span>
         ← {prev.title}
       </a>
-      <a class="track-nav-link track-nav-next" href={`/visuals/${next.slug}`}>
+      <a class="track-nav-link track-nav-next" href={`/renders/${next.slug}`}>
         <span class="track-nav-preview" style={`background-image: url(${next.image})`} aria-hidden="true"></span>
         {next.title} →
       </a>
     </nav>
   )}
 
-  <a class="back-link" href="/visuals">← back to Visuals</a>
+  <a class="back-link" href="/renders">← back to Renders</a>
 </Layout>
 
 <style>
