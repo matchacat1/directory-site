@@ -253,7 +253,7 @@ a {
 .track-social-links {
   display: flex;
   gap: 16px;
-  margin: 0 0 24px;
+  margin: 0 0 32px;
 }
 
 .track-social-icon {
@@ -401,6 +401,21 @@ a {
 .project-desc {
   margin: 6px 0 0;
   font-size: 11.5px;
+  color: var(--ink-soft);
+}
+
+/* Track detail pages — a 3-tier spacing scale so the page reads as
+   distinct, categorized sections rather than one undifferentiated
+   column: 4-6px within an atomic unit (title+flavor, a label+its icons),
+   16px between repeated items within one section (the mixer's track
+   rows), 32px between sections (title block / mixer / stream links). */
+.track-title-block h1 {
+  margin-bottom: 4px;
+}
+
+.track-flavor {
+  margin: 0 0 32px;
+  font-size: 10px;
   color: var(--ink-soft);
 }
 

@@ -10,7 +10,6 @@ const links = (socialLinks as Record<string, { spotify?: string; appleMusic?: st
 
 {links && (
   <>
-  <p class="section-label">Stream</p>
   <div class="track-social-links">
     {links.spotify && (
       <a class="track-social-icon" href={links.spotify} aria-label="Spotify" target="_blank" rel="noopener noreferrer">

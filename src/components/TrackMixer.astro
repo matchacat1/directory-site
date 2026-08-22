@@ -10,7 +10,6 @@ const tracks = audioTracks.filter((t) => t.song === song);
 
 {tracks.length > 0 && (
   <>
-    <p class="section-label">Demo Reel</p>
     <div class="track-mixer">
     {tracks.map((t) => (
       <div class="track-mixer-row" data-slug={t.slug}>
@@ -46,8 +45,8 @@ const tracks = audioTracks.filter((t) => t.song === song);
   .track-mixer {
     display: flex;
     flex-direction: column;
-    gap: 18px;
-    margin: 0 0 28px;
+    gap: 16px;
+    margin: 0 0 32px;
     max-width: 360px;
   }
 

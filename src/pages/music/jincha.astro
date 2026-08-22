@@ -14,7 +14,11 @@ const next = musicTracks[(idx + 1) % musicTracks.length];
 <Layout title={track.title} active="music">
   <div class="track-backdrop" style={`background-image: url(${track.image})`} aria-hidden="true"></div>
 
-  <h1>{track.title}</h1>
+  <div class="track-title-block">
+    <h1>{track.title}</h1>
+
+    <p class="track-flavor">{track.body}</p>
+  </div>
 
   <TrackMixer song="jincha" />
 
