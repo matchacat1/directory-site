@@ -1,9 +1,12 @@
 ---
-// A single click-through gate shown on every hard page load. Its only
-// purpose is to guarantee a real user gesture happens at the exact moment
-// the site is revealed, so BackgroundAudio's autoplay-muted-until-gesture
-// unmute (see onFirstGesture there) fires immediately instead of waiting
-// on some later incidental interaction.
+// A single click-through gate shown on every hard page load — but only
+// the first time a given browser ever sees this site (see VISITED_KEY in
+// the script below). Its purpose is to guarantee a real user gesture
+// happens at the exact moment the site is revealed, so BackgroundAudio's
+// autoplay-muted-until-gesture unmute (see onFirstGesture there) fires
+// immediately instead of waiting on some later incidental interaction. A
+// returning visitor has already granted that once, so re-showing it on
+// every visit would just be friction with no benefit.
 ---
 
 <div id="enter-gate" class="enter-gate" transition:persist="enter-gate">
@@ -59,30 +62,60 @@
 
     const gate = document.getElementById('enter-gate') as HTMLElement;
     const FADE_MS = 500;
+    const VISITED_KEY = 'site-visited';
 
-    document.body.style.overflow = 'hidden';
-    // Double rAF so the initial opacity:0 paints before we transition in.
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => gate.classList.add('is-visible'));
-    });
+    let alreadyVisited = false;
+    try {
+      alreadyVisited = localStorage.getItem(VISITED_KEY) === '1';
+    } catch {
+      // Private browsing / disabled storage — just fall back to showing
+      // the gate every time, same as before this feature existed.
+    }
 
-    // Listens on the whole gate, not just the button, so clicking anywhere
-    // on the overlay enters — not only a click that lands on the text.
-    gate.addEventListener(
-      'click',
-      () => {
-        // This click is itself the gesture BackgroundAudio's document-level
-        // click listener is waiting for — no extra wiring needed, it just
-        // needs to actually reach `document`, which it does by bubbling.
-        gate.classList.remove('is-visible');
-        gate.classList.add('is-hiding');
-        document.body.style.overflow = '';
-        window.dispatchEvent(new Event('site-entered'));
-        setTimeout(() => {
-          gate.style.display = 'none';
-        }, FADE_MS);
-      },
-      { once: true }
-    );
+    if (alreadyVisited) {
+      gate.style.display = 'none';
+      // Deferred to astro:page-load rather than dispatched right here:
+      // this script runs (and reaches this line) before BackgroundAudio's
+      // own script further down the page has executed and attached its
+      // 'site-entered' listener, so firing immediately would dispatch
+      // into the void. astro:page-load fires only once every script on
+      // the page has already run, first load included.
+      document.addEventListener(
+        'astro:page-load',
+        () => {
+          window.dispatchEvent(new Event('site-entered'));
+        },
+        { once: true }
+      );
+    } else {
+      document.body.style.overflow = 'hidden';
+      // Double rAF so the initial opacity:0 paints before we transition in.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => gate.classList.add('is-visible'));
+      });
+
+      // Listens on the whole gate, not just the button, so clicking
+      // anywhere on the overlay enters — not only a click on the text.
+      gate.addEventListener(
+        'click',
+        () => {
+          try {
+            localStorage.setItem(VISITED_KEY, '1');
+          } catch {}
+          // This click is itself the gesture BackgroundAudio's document-
+          // level click listener is waiting for — no extra wiring needed,
+          // it just needs to actually reach `document`, which it does by
+          // bubbling.
+          gate.classList.remove('is-visible');
+          gate.classList.add('is-hiding');
+          document.body.style.overflow = '';
+          window.dispatchEvent(new Event('site-entered'));
+          setTimeout(() => {
+            gate.style.display = 'none';
+          }, FADE_MS);
+        },
+        { once: true }
+      );
+    }
   }
 </script>

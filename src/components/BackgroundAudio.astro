@@ -457,6 +457,13 @@ const DEFAULT_TRACK = audioTracks[0];
         crossfading = true;
         inactive.currentTime = 0;
         inactive.play().catch(() => {});
+        // Repoint currentEl (what the mixer's seek bar/time reads) to the
+        // restarting element the moment the loop crossfade begins, not once
+        // it finishes — otherwise the scrubber keeps counting toward the
+        // outgoing track's end for the full FADE_SECONDS crossfade, then
+        // jumps back to 0:00 all at once, well after the audio itself
+        // already restarted.
+        currentEl = inactive;
 
         const activeStart = activeMult;
         cancelCrossfadeAnim = animate(
@@ -473,10 +480,8 @@ const DEFAULT_TRACK = audioTracks[0];
             const oldActive = active;
             active = inactive;
             inactive = oldActive;
-            // currentEl was never repointed during this loop (same track
-            // throughout), so it's still the element that just paused —
-            // sync it back to the element that's actually still playing.
-            currentEl = active;
+            // currentEl already points at this element — set above, the
+            // moment the crossfade began — so no reassignment needed here.
             activeMult = 1;
             inactiveMult = 0;
             applyVolumes();
@@ -641,6 +646,14 @@ const DEFAULT_TRACK = audioTracks[0];
             ];
             const resume = () => {
               started = true;
+              // Returning visitors skip EnterGate entirely (see there), so
+              // 'site-entered' — and this whole fallback — can fire without
+              // ever having had a real gesture. Re-resuming the AudioContext
+              // here, inside an actual gesture handler, is what actually
+              // gets sound out in that case; without it the context can be
+              // stuck suspended forever since resumeAudioCtx() otherwise
+              // only ever runs once, at that ungestured 'site-entered' time.
+              resumeAudioCtx();
               active.play().then(rampUp).catch(() => {});
               resumeEvents.forEach(([type]) => document.removeEventListener(type, resume));
             };
@@ -802,8 +815,13 @@ const DEFAULT_TRACK = audioTracks[0];
         play: () => ensurePlaying(),
         pause: () => pauseAudio(),
         seek: (t: number) => {
-          const d = active.duration;
-          active.currentTime = Math.max(0, isFinite(d) ? Math.min(t, d) : t);
+          // currentEl, not active — during the brief window a manual track
+          // switch is still crossfading, active still refers to the
+          // outgoing element, while currentEl (what getState() reports
+          // time/duration from) already points at the incoming one. Seeking
+          // `active` in that window would silently move the wrong track.
+          const d = currentEl.duration;
+          currentEl.currentTime = Math.max(0, isFinite(d) ? Math.min(t, d) : t);
           dispatchState();
         },
       };

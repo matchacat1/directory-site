@@ -204,6 +204,12 @@ const tracks = audioTracks.filter((t) => t.song === song);
   if (!(window as any).__trackMixerInit) {
     (window as any).__trackMixerInit = true;
 
+    // Set when a seek happens on a track that isn't the active one — the
+    // switch has to be requested first, but its duration isn't known until
+    // the browser loads that track's metadata, so the actual seek() is
+    // deferred until the poll loop below sees it become available.
+    let pendingSeek: { src: string; fraction: number } | null = null;
+
     document.addEventListener('click', (e) => {
       const btn = (e.target as HTMLElement).closest<HTMLElement>('.track-play-btn');
       if (!btn) return;
@@ -231,11 +237,25 @@ const tracks = audioTracks.filter((t) => t.song === song);
       const api = bgAudio();
       if (!track || !api) return;
 
-      // Only the currently active track's duration is known — dragging an
-      // inactive row's bar is a no-op until its play button is pressed.
+      const fraction = parseFloat(slider.value);
       const state = api.getState();
-      if (state.src !== track.src || !isFinite(state.duration) || state.duration <= 0) return;
-      api.seek(parseFloat(slider.value) * state.duration);
+
+      if (state.src === track.src && isFinite(state.duration) && state.duration > 0) {
+        // Already the active track and its duration is known — seek now.
+        pendingSeek = null;
+        api.seek(fraction * state.duration);
+        return;
+      }
+
+      // A different track's bar was dragged — switch the sitewide player
+      // to it and remember where to land once its duration loads (the
+      // poll loop below applies it). Only actually requests the switch
+      // once per drag: after the first call currentTrack already matches,
+      // so subsequent input ticks just update the pending fraction.
+      if (state.src !== track.src) {
+        api.switchTrack(track);
+      }
+      pendingSeek = { src: track.src, fraction };
     });
 
     // Polls rather than relying solely on the bg-audio-state event, since
@@ -244,6 +264,12 @@ const tracks = audioTracks.filter((t) => t.song === song);
     setInterval(() => {
       const api = bgAudio();
       const state = api?.getState();
+
+      if (pendingSeek && state && state.src === pendingSeek.src && isFinite(state.duration) && state.duration > 0) {
+        api!.seek(pendingSeek.fraction * state.duration);
+        pendingSeek = null;
+      }
+
       document.querySelectorAll<HTMLElement>('.track-mixer-row').forEach((row) => {
         const slug = row.dataset.slug;
         const track = slug ? trackForSlug(slug) : undefined;
@@ -263,7 +289,16 @@ const tracks = audioTracks.filter((t) => t.song === song);
         btn?.setAttribute('aria-label', `${isPlaying ? 'Pause' : 'Play'} ${track.title}`);
 
         if (seekSlider && document.activeElement !== seekSlider) {
-          const fraction = isActive && state!.duration > 0 ? state!.currentTime / state!.duration : 0;
+          // While a switch triggered by dragging this row's own bar is
+          // still waiting on the new track's duration, keep showing where
+          // it was dragged to rather than snapping back to 0 in the
+          // meantime.
+          const fraction =
+            pendingSeek?.src === track.src
+              ? pendingSeek.fraction
+              : isActive && state!.duration > 0
+              ? state!.currentTime / state!.duration
+              : 0;
           seekSlider.value = String(Math.min(1, Math.max(0, fraction)));
         }
         if (timeEl) {
