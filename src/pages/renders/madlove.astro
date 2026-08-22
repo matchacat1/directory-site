@@ -16,14 +16,16 @@ const showNav = visuals.length > 1;
 
   <video
     class="visual-player"
-    src="/videos/madlove.mp4"
     poster="/images/visuals/madlove-poster.jpg"
     autoplay
     muted
     loop
     playsinline
     controls
-  ></video>
+  >
+    <source src="/videos/madlove.webm" type="video/webm" />
+    <source src="/videos/madlove.mp4" type="video/mp4" />
+  </video>
 
   <p>Audio-reactive visual tool based on transient detection from audio source. Runs on TouchDesigner</p>
 
