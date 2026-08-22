@@ -483,6 +483,23 @@ const gridJson = JSON.stringify(brainData.grid);
         // replacing <body> wholesale on navigation — a MutationObserver
         // bound to the original body node would not.
         let hasLoadedOnce = false;
+
+        // Hiding the new content has to happen here, in astro:after-swap —
+        // which Astro dispatches synchronously inside the
+        // document.startViewTransition() callback, before the browser ever
+        // paints the swapped-in DOM — rather than in astro:page-load below,
+        // which fires later, after that callback has already resolved and
+        // the browser has had a chance to render the new (still
+        // full-opacity) content at least once. Hiding this late means a
+        // frame or two of the unfaded new page flashes on screen first,
+        // especially on slower mobile CPUs where that extra scheduling gap
+        // widens — exactly the flicker this is working around.
+        document.addEventListener('astro:after-swap', () => {
+          if (!hasLoadedOnce) return;
+          const contentEl = document.querySelector('.content');
+          if (contentEl) contentEl.style.opacity = '0';
+        });
+
         document.addEventListener('astro:page-load', () => {
           const isHome = document.body.dataset.page === 'home';
 
@@ -494,11 +511,10 @@ const gridJson = JSON.stringify(brainData.grid);
             return;
           }
 
-          // Hold the new page's content invisible until the fog finishes
-          // changing, so it appears right as the refocus settles instead of
-          // popping in immediately while the background is still shifting.
+          // astro:after-swap already hid the new content the instant it
+          // appeared — now that the transition has actually settled, run
+          // the fog change and fade the content back in alongside it.
           const contentEl = document.querySelector('.content');
-          if (contentEl) contentEl.style.opacity = '0';
           applyFogState(isHome, true, () => {
             if (contentEl) contentEl.style.opacity = '1';
           });

@@ -11,4 +11,10 @@ export const visuals = [
     body: 'Geometric grid mapped to frequency bins, with hue and depth driven by real-time pitch and amplitude analysis. Runs on TouchDesigner',
     image: '/images/visuals/voxelspin-thumb.gif',
   },
+  {
+    slug: 'fog',
+    title: 'Fog',
+    body: 'Generative fog tool. Runs on Blender',
+    image: '/images/visuals/fog-poster.jpg',
+  },
 ];

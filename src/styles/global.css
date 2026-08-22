@@ -188,6 +188,13 @@ a {
   margin-left: clamp(calc(var(--sidebar-width) + var(--gap)), 36vw, 620px);
   padding: 56px 40px 96px;
   max-width: 780px;
+  /* Smooths the page-to-page opacity toggle BrainScene.astro drives via
+     inline style during navigation — without this the reveal is an abrupt
+     snap instead of a fade, which reads as a flicker/glitch rather than a
+     transition. Safe as a plain CSS transition (unlike the fog effect's
+     attribute-driven one) since this is a direct inline-style change, not
+     a selector match flipping mid view-transition callback. */
+  transition: opacity 150ms ease;
 }
 
 @media (max-width: 720px) {
@@ -257,44 +264,6 @@ a {
 
 .track-social-icon:hover {
   color: var(--accent);
-}
-
-/* ---------------------------------------------------------------
-   Entry list (projects / CV rows)
------------------------------------------------------------------- */
-.entry-list {
-  margin: 0 0 8px;
-}
-
-.entry-list > * + * {
-  margin-top: 26px;
-  padding-top: 26px;
-}
-
-.entry-title {
-  font-weight: 700;
-  font-size: 14.5px;
-  margin: 0 0 4px;
-}
-
-.entry-title a {
-  text-decoration: none;
-}
-
-.entry-title a:hover {
-  color: var(--accent);
-}
-
-.entry-meta {
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  color: var(--ink-faint);
-  margin: 0 0 8px;
-}
-
-.entry-body {
-  margin: 0;
-  max-width: 62ch;
 }
 
 .track-nav {

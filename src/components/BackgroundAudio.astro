@@ -718,7 +718,10 @@ const DEFAULT_TRACK = audioTracks[0];
         'play',
         (e) => {
           const t = e.target;
-          if (t === a || t === b || !(t instanceof HTMLMediaElement)) return;
+          // A muted element (the renders' silent looping videos, e.g.) has
+          // nothing to compete with the background music for — ducking for
+          // it just needlessly quiets the music every time one starts.
+          if (t === a || t === b || !(t instanceof HTMLMediaElement) || t.muted) return;
           duckDepth++;
           fadeDuck(0.15);
         },
@@ -727,7 +730,7 @@ const DEFAULT_TRACK = audioTracks[0];
 
       function maybeUnduck(e: Event) {
         const t = e.target;
-        if (t === a || t === b || !(t instanceof HTMLMediaElement)) return;
+        if (t === a || t === b || !(t instanceof HTMLMediaElement) || t.muted) return;
         duckDepth = Math.max(0, duckDepth - 1);
         if (duckDepth === 0) fadeDuck(1);
       }

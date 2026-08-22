@@ -1,0 +1,45 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { visuals } from '../../data/visuals';
+
+const SLUG = 'fog';
+const idx = visuals.findIndex((v) => v.slug === SLUG);
+const prev = visuals[(idx - 1 + visuals.length) % visuals.length];
+const next = visuals[(idx + 1) % visuals.length];
+const showNav = visuals.length > 1;
+---
+
+<Layout title="Fog" active="renders">
+  <div class="track-backdrop" style="background-image: url(/images/visuals/fog-poster.jpg)" aria-hidden="true"></div>
+
+  <h1>Fog</h1>
+
+  <img class="visual-image" src="/images/visuals/fog-poster.jpg" alt="Fog node graph" />
+
+  <p>Generative fog tool. Runs on Blender.</p>
+
+  {showNav && (
+    <nav class="track-nav" aria-label="Other renders">
+      <a class="track-nav-link track-nav-prev" href={`/renders/${prev.slug}`}>
+        <span class="track-nav-preview" style={`background-image: url(${prev.image})`} aria-hidden="true"></span>
+        ← {prev.title}
+      </a>
+      <a class="track-nav-link track-nav-next" href={`/renders/${next.slug}`}>
+        <span class="track-nav-preview" style={`background-image: url(${next.image})`} aria-hidden="true"></span>
+        {next.title} →
+      </a>
+    </nav>
+  )}
+
+  <a class="back-link" href="/renders">← back to Renders</a>
+</Layout>
+
+<style>
+  .visual-image {
+    display: block;
+    width: 100%;
+    max-width: 640px;
+    margin: 0 0 20px;
+    border: 1px solid var(--ink);
+  }
+</style>
