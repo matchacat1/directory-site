@@ -1,16 +1,101 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import { projects } from '../../data/projects';
+
+const SLUG = 'faber';
+const idx = projects.findIndex((p) => p.slug === SLUG);
+const prev = projects[(idx - 1 + projects.length) % projects.length];
+const next = projects[(idx + 1) % projects.length];
+const showNav = projects.length > 1;
 ---
 
 <Layout title="Faber" active="projects">
-  <h1>Faber</h1>
-  <p class="entry-meta">Semi-modular wavetable synthesizer</p>
+  <div class="track-backdrop" style="background-image: url(/images/projects/faber.png)" aria-hidden="true"></div>
+
+  <div class="page-title-row">
+    <h1>Faber</h1>
+    <span class="status-badge">
+      <span class="status-dot" aria-hidden="true"></span>
+      Currently working
+    </span>
+  </div>
 
   <p>
-    Placeholder detail page for Faber. Describe the problem, your
-    role, and the outcome — link out to a repo, write-up, or demo
-    if you have one.
+    Semi-modular wavetable synthesizer with tree-like fractal growth
+    resonators. Generate and fine tune resonances with standard
+    synthesizer parameters.
   </p>
+
+  <p class="spec-label"><strong>Technical specs</strong></p>
+
+  <p class="spec-line">
+    <svg class="spec-icon" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="3" y="3" width="8" height="8"></rect>
+      <rect x="13" y="3" width="8" height="8"></rect>
+      <rect x="3" y="13" width="8" height="8"></rect>
+      <rect x="13" y="13" width="8" height="8"></rect>
+    </svg>
+    Windows 10 - 11
+  </p>
+  <p class="spec-detail">64-bit VST3 and AAX</p>
+
+  <p class="spec-line">
+    <svg class="spec-icon" viewBox="0 0 24 24" width="11" height="11" fill="currentColor" stroke="none" aria-hidden="true">
+      <path d="M16.365 2.658c-.83.05-1.809.564-2.397 1.244-.537.61-.994 1.55-.82 2.463.9.048 1.827-.474 2.386-1.146.55-.65.96-1.575.83-2.561zM19.87 17.44c-.362.834-.55 1.207-1.028 1.947-.665 1.03-1.604 2.315-2.766 2.328-1.03.012-1.297-.672-2.699-.664-1.401.008-1.696.677-2.727.664-1.162-.013-2.052-1.166-2.717-2.196-1.862-2.874-2.058-6.253-.907-8.05.816-1.276 2.106-2.023 3.319-2.023 1.234 0 2.01.68 3.031.68.99 0 1.596-.68 3.024-.68 1.079 0 2.222.588 3.037 1.605-2.669 1.463-2.236 5.276.433 6.389z"></path>
+    </svg>
+    MacOS X 10.14 - MacOS 26
+  </p>
+  <p class="spec-detail">64-bit VST3, AU, and AAX</p>
+
+  {showNav && (
+    <nav class="track-nav" aria-label="Other projects">
+      <a class="track-nav-link track-nav-prev" href={`/projects/${prev.slug}`}>
+        <span class="track-nav-preview" style={`background-image: url(${prev.image})`} aria-hidden="true"></span>
+        ← {prev.title}
+      </a>
+      <a class="track-nav-link track-nav-next" href={`/projects/${next.slug}`}>
+        <span class="track-nav-preview" style={`background-image: url(${next.image})`} aria-hidden="true"></span>
+        {next.title} →
+      </a>
+    </nav>
+  )}
 
   <a class="back-link" href="/projects">← back to Projects</a>
 </Layout>
+
+<style>
+  .page-title-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+
+  .page-title-row h1 {
+    margin-bottom: 0;
+  }
+
+  .spec-label {
+    font-size: 12px;
+  }
+
+  .spec-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 2px;
+    font-size: 12px;
+  }
+
+  .spec-icon {
+    flex: 0 0 auto;
+    color: var(--ink-soft);
+  }
+
+  .spec-detail {
+    margin: 0 0 16px;
+    margin-left: 19px;
+    font-size: 10.5px;
+    color: var(--ink-soft);
+  }
+</style>

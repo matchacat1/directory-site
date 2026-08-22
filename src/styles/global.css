@@ -234,6 +234,31 @@ a {
   color: var(--ink-soft);
 }
 
+.section-label {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  color: var(--ink-soft);
+  margin: 0 0 10px;
+}
+
+.track-social-links {
+  display: flex;
+  gap: 16px;
+  margin: 0 0 24px;
+}
+
+.track-social-icon {
+  display: flex;
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+
+.track-social-icon:hover {
+  color: var(--accent);
+}
+
 /* ---------------------------------------------------------------
    Entry list (projects / CV rows)
 ------------------------------------------------------------------ */
@@ -408,4 +433,50 @@ a {
   margin: 6px 0 0;
   font-size: 11.5px;
   color: var(--ink-soft);
+}
+
+.project-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin: 10px 0 0;
+}
+
+.project-title-row .project-title {
+  margin: 0;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--ink-soft);
+  border: 1px solid var(--line);
+  padding: 2px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.status-dot {
+  flex: 0 0 auto;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: status-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes status-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
 }

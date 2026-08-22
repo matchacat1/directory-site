@@ -1,10 +1,12 @@
 ---
-const TRACK_SRC = '/audio/ambino.mp3';
+import { audioTracks } from '../data/audio-tracks';
+
+const DEFAULT_TRACK = audioTracks[0];
 ---
 
 <div id="bg-audio-block" style="display:contents" transition:persist="bg-audio-block">
-  <audio id="bg-audio-a" src={TRACK_SRC} preload="auto"></audio>
-  <audio id="bg-audio-b" src={TRACK_SRC} preload="auto"></audio>
+  <audio id="bg-audio-a" src={DEFAULT_TRACK.src} preload="auto"></audio>
+  <audio id="bg-audio-b" src={DEFAULT_TRACK.src} preload="auto"></audio>
 
   <div id="volume-control" class="volume-control">
     <div class="volume-slider-wrap">
@@ -19,19 +21,23 @@ const TRACK_SRC = '/audio/ambino.mp3';
         aria-label="Volume"
       />
     </div>
-    <button id="volume-icon" class="volume-icon" aria-label="Toggle background music" aria-pressed="true">
-      <svg id="icon-on" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polygon points="4 9 4 15 8 15 13 20 13 4 8 9 4 9"></polygon>
-        <path d="M16 8a5 5 0 0 1 0 8"></path>
-        <path d="M18.5 5.5a9 9 0 0 1 0 13"></path>
-      </svg>
-      <svg id="icon-off" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
-        <polygon points="4 9 4 15 8 15 13 20 13 4 8 9 4 9"></polygon>
-        <line x1="16" y1="9" x2="22" y2="15"></line>
-        <line x1="22" y1="9" x2="16" y2="15"></line>
-      </svg>
-    </button>
+    <div class="volume-icon-row">
+      <button id="volume-icon" class="volume-icon" aria-label="Toggle background music" aria-pressed="true">
+        <svg id="icon-on" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="4 9 4 15 8 15 13 20 13 4 8 9 4 9"></polygon>
+          <path d="M16 8a5 5 0 0 1 0 8"></path>
+          <path d="M18.5 5.5a9 9 0 0 1 0 13"></path>
+        </svg>
+        <svg id="icon-off" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+          <polygon points="4 9 4 15 8 15 13 20 13 4 8 9 4 9"></polygon>
+          <line x1="16" y1="9" x2="22" y2="15"></line>
+          <line x1="22" y1="9" x2="16" y2="15"></line>
+        </svg>
+      </button>
+      <a id="now-playing" class="now-playing" href={`/music/${DEFAULT_TRACK.song}`}>Now playing: {DEFAULT_TRACK.nowPlaying}</a>
+    </div>
   </div>
+
 </div>
 
 <style>
@@ -41,9 +47,51 @@ const TRACK_SRC = '/audio/ambino.mp3';
     bottom: 24px;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    /* flex-start (not center) so the 28px-wide slider-wrap and the 28px-wide
+       icon button — both left-aligned within the column — share a left
+       edge. Centering here would center the slider over the full icon+text
+       row instead of just the icon, once the "now playing" text widened
+       that row. */
+    align-items: flex-start;
     gap: 2px;
     z-index: 50;
+  }
+
+  .volume-icon-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .now-playing {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--ink-soft);
+    text-decoration: none;
+    white-space: nowrap;
+    opacity: 0;
+    /* Not clickable until it's actually shown (playback has begun) — see
+       .is-visible below, which restores pointer-events once it is. */
+    pointer-events: none;
+  }
+
+  .now-playing:hover {
+    color: var(--accent);
+  }
+
+  .now-playing.is-visible {
+    pointer-events: auto;
+    animation: now-playing-blink 1.6s ease-in-out infinite;
+  }
+
+  @keyframes now-playing-blink {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.3;
+    }
   }
 
   .volume-icon {
@@ -75,7 +123,10 @@ const TRACK_SRC = '/audio/ambino.mp3';
     transition: height 0.25s ease;
   }
 
-  .volume-control:hover .volume-slider-wrap,
+  /* Hovering the icon reveals the slider — hovering the rest of the
+     control (the "Now playing" link included) should not, since that's
+     a separate, unrelated click target now. */
+  .volume-control:has(.volume-icon:hover) .volume-slider-wrap,
   .volume-control:focus-within .volume-slider-wrap,
   .volume-control.is-expanded .volume-slider-wrap {
     height: 64px;
@@ -140,6 +191,8 @@ const TRACK_SRC = '/audio/ambino.mp3';
 </style>
 
 <script>
+  import { audioTracks } from '../data/audio-tracks';
+
   if (!(window as any).__bgAudioInit) {
     (window as any).__bgAudioInit = true;
 
@@ -150,6 +203,7 @@ const TRACK_SRC = '/audio/ambino.mp3';
     const iconOn = document.getElementById('icon-on') as unknown as HTMLElement;
     const iconOff = document.getElementById('icon-off') as unknown as HTMLElement;
     const slider = document.getElementById('volume-slider') as HTMLInputElement;
+    const nowPlaying = document.getElementById('now-playing') as HTMLAnchorElement | null;
 
     if (a && b && volumeControl && iconBtn && slider) {
       // The slider only expands on CSS :hover, which touch devices never
@@ -209,7 +263,13 @@ const TRACK_SRC = '/audio/ambino.mp3';
         touchDragging = false;
       });
 
+      // Used for the natural gapless loop-restart (masking a track's own
+      // seam, where slow and smooth reads as intentional).
       const FADE_SECONDS = 2.5;
+      // Used when a visitor manually switches tracks — much shorter, since
+      // here a fade is just softening a hard cut rather than hiding a loop
+      // point, and it should feel responsive to click on.
+      const SWITCH_FADE_SECONDS = 0.4;
       const FADE_IN_SECONDS = 2.5;
       const VOLUME_KEY = 'bg-audio-volume';
 
@@ -227,6 +287,57 @@ const TRACK_SRC = '/audio/ambino.mp3';
       let activeMult = 0;
       let inactiveMult = 0;
       let started = false;
+      let currentTrack = audioTracks[0];
+
+      // The element whose playback position currentState() reports.
+      // Usually the same object `active` points to — but the moment a
+      // manual track switch begins, `currentTrack` updates immediately
+      // while `active` still belongs to the outgoing track until its
+      // ~2.5s crossfade finishes. Without tracking this separately, a
+      // mixer row for the new track would briefly show the OLD track's
+      // currentTime/duration (since currentState() would report the new
+      // track's src alongside the old track's position), then jump once
+      // the crossfade completed — the exact "wrong timeline, then snaps
+      // to 0" delay this fixes.
+      let currentEl = a;
+
+      // Canceller for whichever crossfade (natural loop-restart or a
+      // manual track switch) is currently running its volume ramp — lets
+      // a new switch interrupt and immediately redirect an in-flight one
+      // instead of being silently dropped while `crossfading` is true.
+      // That drop was exactly what made rapid switching between songs
+      // feel like it "sometimes doesn't change."
+      let cancelCrossfadeAnim: (() => void) | null = null;
+
+      // Set only by an explicit pause() call from page-level UI (e.g. the
+      // etona mixer's pause button) — distinct from the tab-hidden
+      // auto-pause below, which should resume on its own without this.
+      let userPaused = false;
+
+      function setNowPlayingDisplay(track: (typeof audioTracks)[number]) {
+        if (!nowPlaying) return;
+        nowPlaying.textContent = `Now playing: ${track.nowPlaying}`;
+        nowPlaying.href = `/music/${track.song}`;
+      }
+
+      function currentState() {
+        return {
+          src: currentTrack.src,
+          title: currentTrack.title,
+          volume: masterVolume,
+          muted,
+          playing: started && !currentEl.paused,
+          currentTime: currentEl.currentTime || 0,
+          duration: currentEl.duration || 0,
+        };
+      }
+
+      // Lets other page content (e.g. the etona mixer) read/drive the
+      // sitewide player and stay in sync with it, without either side
+      // needing to know about the other's DOM.
+      function dispatchState() {
+        window.dispatchEvent(new CustomEvent('bg-audio-state', { detail: currentState() }));
+      }
 
       // iOS Safari silently ignores HTMLMediaElement.volume — physical
       // volume buttons are the only thing allowed to control loudness
@@ -236,6 +347,7 @@ const TRACK_SRC = '/audio/ambino.mp3';
       const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext;
       let aGain: GainNode | null = null;
       let bGain: GainNode | null = null;
+      let resumeAudioCtx = () => {};
       if (AudioContextCtor) {
         try {
           const audioCtx = new AudioContextCtor();
@@ -243,14 +355,9 @@ const TRACK_SRC = '/audio/ambino.mp3';
           bGain = audioCtx.createGain();
           audioCtx.createMediaElementSource(a).connect(aGain).connect(audioCtx.destination);
           audioCtx.createMediaElementSource(b).connect(bGain).connect(audioCtx.destination);
-          const resumeAudioCtx = () => {
+          resumeAudioCtx = () => {
             audioCtx.resume().catch(() => {});
           };
-          // No password gate to supply a guaranteed first user gesture
-          // anymore — resume on whichever of these fires first.
-          document.addEventListener('click', resumeAudioCtx, { once: true });
-          document.addEventListener('keydown', resumeAudioCtx, { once: true });
-          document.addEventListener('touchstart', resumeAudioCtx, { once: true, passive: true });
           document.addEventListener('visibilitychange', () => {
             if (!document.hidden) resumeAudioCtx();
           });
@@ -283,7 +390,9 @@ const TRACK_SRC = '/audio/ambino.mp3';
       // always applied via setTimeout — rAF is throttled/paused in
       // backgrounded tabs, and without this fallback a crossfade started
       // right before the tab is backgrounded would never finish, leaving
-      // the old track to hit its natural end and stop for good.
+      // the old track to hit its natural end and stop for good. Returns a
+      // canceller that stops both without firing onTick(1)/onDone — used
+      // to interrupt an in-flight crossfade when a newer one supersedes it.
       function animate(
         durationMs: number,
         onTick: (t: number) => void,
@@ -292,6 +401,7 @@ const TRACK_SRC = '/audio/ambino.mp3';
       ) {
         const startTime = performance.now();
         let rafId: number | null = null;
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
         function frame() {
           const raw = Math.min(1, (performance.now() - startTime) / durationMs);
@@ -300,11 +410,16 @@ const TRACK_SRC = '/audio/ambino.mp3';
         }
         rafId = requestAnimationFrame(frame);
 
-        setTimeout(() => {
+        timeoutId = setTimeout(() => {
           if (rafId !== null) cancelAnimationFrame(rafId);
           onTick(easing(1));
           onDone && onDone();
         }, durationMs);
+
+        return () => {
+          if (rafId !== null) cancelAnimationFrame(rafId);
+          if (timeoutId !== null) clearTimeout(timeoutId);
+        };
       }
 
       // Very fast initial velocity, decelerating smoothly to the target with
@@ -326,19 +441,25 @@ const TRACK_SRC = '/audio/ambino.mp3';
         inactive.currentTime = 0;
         inactive.play().catch(() => {});
 
-        animate(
+        const activeStart = activeMult;
+        cancelCrossfadeAnim = animate(
           FADE_SECONDS * 1000,
           (t) => {
-            activeMult = 1 - t;
+            activeMult = activeStart * (1 - t);
             inactiveMult = t;
             applyVolumes();
           },
           () => {
+            cancelCrossfadeAnim = null;
             active.pause();
             active.currentTime = 0;
             const oldActive = active;
             active = inactive;
             inactive = oldActive;
+            // currentEl was never repointed during this loop (same track
+            // throughout), so it's still the element that just paused —
+            // sync it back to the element that's actually still playing.
+            currentEl = active;
             activeMult = 1;
             inactiveMult = 0;
             applyVolumes();
@@ -346,6 +467,97 @@ const TRACK_SRC = '/audio/ambino.mp3';
           },
           smoothstep
         );
+      }
+
+      // Switches the sitewide background track on demand — e.g. a page's
+      // play button for a track that isn't the one currently active.
+      // Reuses the same crossfade math as the natural gapless loop above,
+      // just fading into a different src instead of the same one restarted.
+      function crossfadeToTrack(track: (typeof audioTracks)[number]) {
+        if (track.src === currentTrack.src) {
+          ensurePlaying();
+          return;
+        }
+        userPaused = false;
+        currentTrack = track;
+        setNowPlayingDisplay(track);
+
+        if (!started) {
+          a.src = track.src;
+          b.src = track.src;
+          currentEl = a;
+          fadeInAndPlay();
+          dispatchState();
+          return;
+        }
+
+        // Interrupt whatever crossfade (a natural loop-restart, or a
+        // previous manual switch) is currently in flight and redirect it
+        // toward this newly-requested track, rather than dropping the
+        // click — previously a click landing during another crossfade's
+        // ~2.5s window did nothing at all.
+        if (crossfading) {
+          cancelCrossfadeAnim?.();
+          cancelCrossfadeAnim = null;
+        }
+        crossfading = true;
+        inactive.src = track.src;
+        inactive.currentTime = 0;
+        inactiveMult = 0;
+        applyVolumes();
+        // Report the new track's (fresh, near-0) position from here on,
+        // not the outgoing track's — `inactive` is about to become
+        // `active` once the fade completes, but the mixer should reflect
+        // the switch immediately rather than waiting for that swap.
+        currentEl = inactive;
+
+        function beginRamp() {
+          // Continues from wherever the outgoing track's volume currently
+          // sits rather than assuming it starts at 1 — it may already be
+          // partway faded down if this switch interrupted an earlier one.
+          const activeStart = activeMult;
+          cancelCrossfadeAnim = animate(
+            SWITCH_FADE_SECONDS * 1000,
+            (t) => {
+              activeMult = activeStart * (1 - t);
+              inactiveMult = t;
+              applyVolumes();
+            },
+            () => {
+              cancelCrossfadeAnim = null;
+              active.pause();
+              const oldActive = active;
+              active = inactive;
+              inactive = oldActive;
+              // Keep the now-idle element's src matching the new active track
+              // so the natural gapless-loop crossfade above still works for it.
+              inactive.src = track.src;
+              activeMult = 1;
+              inactiveMult = 0;
+              applyVolumes();
+              crossfading = false;
+              dispatchState();
+            },
+            smoothstep
+          );
+        }
+
+        // A freshly-swapped src isn't preloaded like the initial track is,
+        // so it can take a beat to actually start producing sound. Ramping
+        // on a fixed timer regardless of that meant the fade curve was
+        // already partway through by the time audio appeared — audible as
+        // a pop-in rather than a smooth fade. Waiting for the play promise
+        // to resolve (same pattern fadeInAndPlay uses) keeps the ramp
+        // synced to when sound actually starts.
+        const p = inactive.play();
+        if (p) {
+          p.then(beginRamp).catch(() => {
+            crossfading = false;
+          });
+        } else {
+          beginRamp();
+        }
+        dispatchState();
       }
 
       function onTimeUpdate(el: HTMLAudioElement) {
@@ -386,6 +598,8 @@ const TRACK_SRC = '/audio/ambino.mp3';
         const p = active.play();
 
         function rampUp() {
+          nowPlaying?.classList.add('is-visible');
+          dispatchState();
           animate(FADE_IN_SECONDS * 1000, (t) => {
             activeMult = t;
             applyVolumes();
@@ -395,14 +609,26 @@ const TRACK_SRC = '/audio/ambino.mp3';
         if (p) {
           p.then(rampUp).catch(() => {
             started = false;
+            // Browsers block audible autoplay until the visitor has made a
+            // "sticky activation" gesture on the page — no code workaround
+            // for that, so the best we can do is start on the very first
+            // one of these, whichever comes first, instead of narrowing it
+            // down to just a click.
+            const resumeEvents: [string, AddEventListenerOptions][] = [
+              ['click', {}],
+              ['keydown', {}],
+              ['touchstart', { passive: true }],
+              ['pointerdown', {}],
+              ['scroll', { passive: true }],
+            ];
             const resume = () => {
               started = true;
               active.play().then(rampUp).catch(() => {});
-              document.removeEventListener('click', resume);
-              document.removeEventListener('keydown', resume);
+              resumeEvents.forEach(([type]) => document.removeEventListener(type, resume));
             };
-            document.addEventListener('click', resume, { once: true });
-            document.addEventListener('keydown', resume, { once: true });
+            resumeEvents.forEach(([type, options]) =>
+              document.addEventListener(type, resume, { ...options, once: true })
+            );
           });
         } else {
           rampUp();
@@ -410,25 +636,47 @@ const TRACK_SRC = '/audio/ambino.mp3';
       }
 
       function ensurePlaying() {
+        userPaused = false;
         if (!started) {
           fadeInAndPlay();
         } else if (active.paused) {
           active.play().catch(() => {});
         }
+        dispatchState();
       }
 
-      fadeInAndPlay();
+      function pauseAudio() {
+        userPaused = true;
+        a.pause();
+        b.pause();
+        dispatchState();
+      }
+
+      // Playback only actually begins once the visitor clicks past
+      // EnterGate — that click is a real user gesture, so by waiting for
+      // it there's no need for the muted-autoplay-then-unmute workaround
+      // browsers otherwise require: .play() just succeeds normally here.
+      window.addEventListener(
+        'site-entered',
+        () => {
+          resumeAudioCtx();
+          fadeInAndPlay();
+        },
+        { once: true }
+      );
 
       // Pause while the tab is hidden/backgrounded rather than letting it
       // keep playing behind the scenes, and pick back up when it's visible
-      // again. Both elements are resumed — whichever is currently inactive
-      // is already sitting at volume 0 from the normal crossfade bookkeeping,
+      // again — unless a page-level pause button explicitly paused it, in
+      // which case coming back to the tab shouldn't un-pause it on its own.
+      // Both elements are resumed — whichever is currently inactive is
+      // already sitting at volume 0 from the normal crossfade bookkeeping,
       // so resuming it is silent and just keeps it ready for the next swap.
       document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
           a.pause();
           b.pause();
-        } else if (started) {
+        } else if (started && !userPaused) {
           a.play().catch(() => {});
           b.play().catch(() => {});
         }
@@ -494,6 +742,7 @@ const TRACK_SRC = '/audio/ambino.mp3';
         updateIcon();
         animateSliderTo(muted ? 0 : masterVolume);
         ensurePlaying();
+        dispatchState();
       }
 
       iconBtn.addEventListener('click', toggleMute);
@@ -505,14 +754,35 @@ const TRACK_SRC = '/audio/ambino.mp3';
         toggleMute();
       });
 
-      slider.addEventListener('input', () => {
-        masterVolume = parseFloat(slider.value);
+      function setMasterVolume(v: number) {
+        masterVolume = Math.min(1, Math.max(0, v));
         muted = masterVolume === 0;
         localStorage.setItem(VOLUME_KEY, String(masterVolume));
+        slider.value = String(masterVolume);
         applyVolumes();
         updateIcon();
         ensurePlaying();
-      });
+        dispatchState();
+      }
+
+      slider.addEventListener('input', () => setMasterVolume(parseFloat(slider.value)));
+
+      // Small API so page-level content (e.g. the etona mixer's play/pause
+      // buttons and seek bars) can read and drive the sitewide player
+      // without either side needing direct references to the other's DOM.
+      (window as any).__bgAudio = {
+        getState: () => currentState(),
+        switchTrack: (track: (typeof audioTracks)[number]) => crossfadeToTrack(track),
+        setVolume: (v: number) => setMasterVolume(v),
+        play: () => ensurePlaying(),
+        pause: () => pauseAudio(),
+        seek: (t: number) => {
+          const d = active.duration;
+          active.currentTime = Math.max(0, isFinite(d) ? Math.min(t, d) : t);
+          dispatchState();
+        },
+      };
+      dispatchState();
     }
   }
 </script>

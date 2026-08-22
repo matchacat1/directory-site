@@ -3,6 +3,7 @@ import '../styles/global.css';
 import { ClientRouter } from 'astro:transitions';
 import BackgroundAudio from '../components/BackgroundAudio.astro';
 import BrainScene from '../components/BrainScene.astro';
+import EnterGate from '../components/EnterGate.astro';
 
 interface Props {
   title: string;
@@ -16,6 +17,7 @@ const SITE_TITLE = 'Daniel Hong';
 const DIRECTORY = [
   { key: 'projects', label: 'Projects', href: '/projects' },
   { key: 'music', label: 'Music', href: '/music' },
+  { key: 'visuals', label: 'Visuals', href: '/visuals' },
   { key: 'about', label: 'About', href: '/about' },
   { key: 'contact', label: 'Contact', href: '/contact' },
 ];
@@ -32,6 +34,7 @@ const DIRECTORY = [
   </head>
   <body data-page={active}>
     <BrainScene />
+    <EnterGate />
 
     <div class="shell">
       <aside class="directory">

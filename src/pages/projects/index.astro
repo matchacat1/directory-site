@@ -1,25 +1,26 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-
-const plugins = [
-  {
-    href: '/projects/faber',
-    title: 'Faber',
-    body: 'Semi-modular wavetable synthesizer',
-  },
-];
+import { projects } from '../../data/projects';
 ---
 
 <Layout title="Projects" active="projects">
   <h1>Projects</h1>
 
   <div class="project-grid">
-    {plugins.map((p) => (
+    {projects.map((p) => (
       <div class="project-card">
-        <a class="project-image" href={p.href} aria-label={p.title}>
-          {p.title}
+        <a class="project-image" href={`/projects/${p.slug}`} aria-label={p.title}>
+          <img src={p.image} alt="" loading="lazy" />
         </a>
-        <a class="project-title" href={p.href}>{p.title}</a>
+        <div class="project-title-row">
+          <a class="project-title" href={`/projects/${p.slug}`}>{p.title}</a>
+          {p.status && (
+            <span class="status-badge">
+              <span class="status-dot" aria-hidden="true"></span>
+              {p.status}
+            </span>
+          )}
+        </div>
         <p class="project-desc">{p.body}</p>
       </div>
     ))}

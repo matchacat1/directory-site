@@ -400,6 +400,8 @@ const gridJson = JSON.stringify(brainData.grid);
       }
       resize(true);
 
+      // Don't reveal the brain or start the snow until the visitor has
+      // clicked past the enter gate.
       let sceneStarted = false;
       function startScene() {
         if (sceneStarted) return;
@@ -411,7 +413,7 @@ const gridJson = JSON.stringify(brainData.grid);
         requestAnimationFrame(step);
       }
 
-      startScene();
+      window.addEventListener('site-entered', startScene, { once: true });
 
       // --- fog transition: home (sharp) <-> subpage (dim + blurred) ---
       // Driven entirely in JS rather than a CSS `transition`, since the

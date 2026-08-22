@@ -1,0 +1,57 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { visuals } from '../../data/visuals';
+
+const SLUG = 'voxelspin';
+const idx = visuals.findIndex((v) => v.slug === SLUG);
+const prev = visuals[(idx - 1 + visuals.length) % visuals.length];
+const next = visuals[(idx + 1) % visuals.length];
+const showNav = visuals.length > 1;
+---
+
+<Layout title="Voxelspin" active="visuals">
+  <div class="track-backdrop" style="background-image: url(/images/visuals/voxelspin-poster.jpg)" aria-hidden="true"></div>
+
+  <h1>Voxelspin</h1>
+
+  <video
+    class="visual-player"
+    src="/videos/voxelspin.mp4"
+    poster="/images/visuals/voxelspin-poster.jpg"
+    autoplay
+    muted
+    loop
+    playsinline
+    controls
+  ></video>
+
+  <p>Geometric grid mapped to frequency bins, with hue and depth driven by real-time pitch and amplitude analysis. Runs on TouchDesigner.</p>
+
+  {showNav && (
+    <nav class="track-nav" aria-label="Other visuals">
+      <a class="track-nav-link track-nav-prev" href={`/visuals/${prev.slug}`}>
+        <span class="track-nav-preview" style={`background-image: url(${prev.image})`} aria-hidden="true"></span>
+        ← {prev.title}
+      </a>
+      <a class="track-nav-link track-nav-next" href={`/visuals/${next.slug}`}>
+        <span class="track-nav-preview" style={`background-image: url(${next.image})`} aria-hidden="true"></span>
+        {next.title} →
+      </a>
+    </nav>
+  )}
+
+  <a class="back-link" href="/visuals">← back to Visuals</a>
+</Layout>
+
+<style>
+  .visual-player {
+    display: block;
+    width: 100%;
+    max-width: 640px;
+    aspect-ratio: 16 / 9;
+    margin: 0 0 20px;
+    border: 1px solid var(--ink);
+    background: #000;
+    object-fit: cover;
+  }
+</style>

@@ -1,0 +1,278 @@
+---
+import { audioTracks } from '../data/audio-tracks';
+
+interface Props {
+  song: string;
+}
+const { song } = Astro.props;
+const tracks = audioTracks.filter((t) => t.song === song);
+---
+
+{tracks.length > 0 && (
+  <>
+    <p class="section-label">Demo Reel</p>
+    <div class="track-mixer">
+    {tracks.map((t) => (
+      <div class="track-mixer-row" data-slug={t.slug}>
+        <span class="track-mixer-label">{t.title}</span>
+        <div class="track-mixer-controls">
+          <button class="track-play-btn" aria-label={`Play ${t.title}`}>
+            <svg class="icon-play" viewBox="0 0 24 24" width="12" height="12" fill="currentColor" stroke="none" aria-hidden="true">
+              <polygon points="6 4 20 12 6 20"></polygon>
+            </svg>
+            <svg class="icon-pause" viewBox="0 0 24 24" width="12" height="12" fill="currentColor" stroke="none" aria-hidden="true" style="display:none">
+              <rect x="6" y="4" width="4" height="16"></rect>
+              <rect x="14" y="4" width="4" height="16"></rect>
+            </svg>
+          </button>
+          <input
+            type="range"
+            class="track-seek-slider"
+            min="0"
+            max="1"
+            step="0.001"
+            value="0"
+            aria-label={`${t.title} playback position`}
+          />
+          <span class="track-time">0:00 / 0:00</span>
+        </div>
+      </div>
+    ))}
+    </div>
+  </>
+)}
+
+<style>
+  .track-mixer {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    margin: 0 0 28px;
+    max-width: 360px;
+  }
+
+  .track-mixer-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .track-mixer-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .track-play-btn {
+    flex: 0 0 auto;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+  }
+
+  .track-play-btn:hover,
+  .track-play-btn:focus-visible {
+    color: var(--accent);
+  }
+
+  /* Nudge the play triangle's optical center right, since an equilateral
+     shape pointing right reads as slightly left-of-center otherwise. */
+  .track-play-btn .icon-play {
+    margin-left: 1px;
+  }
+
+  .track-mixer-label {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-soft);
+    white-space: nowrap;
+  }
+
+  /* Same minimal thin-track/rectangle-thumb look as the corner volume
+     slider, just laid out horizontally (unrotated) since this sits inline
+     in page content rather than a fixed corner widget. */
+  .track-seek-slider {
+    flex: 1 1 auto;
+    height: 14px;
+    margin: 0;
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+    touch-action: none;
+  }
+
+  .track-seek-slider::-webkit-slider-runnable-track {
+    height: 1px;
+    background: var(--ink-faint);
+  }
+
+  .track-seek-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 4px;
+    height: 14px;
+    background: var(--ink);
+    border-radius: 0;
+    margin-top: -6.5px;
+  }
+
+  .track-seek-slider::-moz-range-track {
+    height: 1px;
+    background: var(--ink-faint);
+    border: none;
+  }
+
+  .track-seek-slider::-moz-range-thumb {
+    width: 4px;
+    height: 14px;
+    background: var(--ink);
+    border: none;
+    border-radius: 0;
+  }
+
+  .track-seek-slider:hover::-webkit-slider-thumb,
+  .track-seek-slider:focus-visible::-webkit-slider-thumb {
+    background: var(--accent);
+  }
+
+  .track-seek-slider:hover::-moz-range-thumb,
+  .track-seek-slider:focus-visible::-moz-range-thumb {
+    background: var(--accent);
+  }
+
+  .track-time {
+    flex: 0 0 auto;
+    width: 84px;
+    text-align: right;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--ink-faint);
+  }
+</style>
+
+<script>
+  import { audioTracks } from '../data/audio-tracks';
+
+  interface BgAudioState {
+    src: string;
+    title: string;
+    volume: number;
+    muted: boolean;
+    playing: boolean;
+    currentTime: number;
+    duration: number;
+  }
+  interface BgAudioApi {
+    getState(): BgAudioState;
+    switchTrack(track: (typeof audioTracks)[number]): void;
+    setVolume(v: number): void;
+    play(): void;
+    pause(): void;
+    seek(t: number): void;
+  }
+
+  function bgAudio(): BgAudioApi | undefined {
+    return (window as any).__bgAudio;
+  }
+
+  function trackForSlug(slug: string) {
+    return audioTracks.find((t) => t.slug === slug);
+  }
+
+  function formatTime(s: number) {
+    if (!isFinite(s) || s < 0) return '0:00';
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${String(sec).padStart(2, '0')}`;
+  }
+
+  // Astro only runs this module once for the whole browsing session — a
+  // client-side navigation to a different song's page (or back to this
+  // one) swaps in fresh DOM but does not re-execute the script. So instead
+  // of capturing element references up front, everything below re-queries
+  // the DOM at the moment it's needed (on each event, on each poll tick) —
+  // that way one shared instance of this logic keeps working correctly for
+  // whichever song's mixer rows currently exist, on any page, no matter
+  // how many times they get torn down and recreated.
+  if (!(window as any).__trackMixerInit) {
+    (window as any).__trackMixerInit = true;
+
+    document.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLElement>('.track-play-btn');
+      if (!btn) return;
+      const row = btn.closest<HTMLElement>('.track-mixer-row');
+      const slug = row?.dataset.slug;
+      const track = slug ? trackForSlug(slug) : undefined;
+      const api = bgAudio();
+      if (!track || !api) return;
+
+      const state = api.getState();
+      if (state.src === track.src) {
+        if (state.playing) api.pause();
+        else api.play();
+      } else {
+        api.switchTrack(track);
+      }
+    });
+
+    document.addEventListener('input', (e) => {
+      const slider = e.target as HTMLInputElement;
+      if (!slider.classList?.contains('track-seek-slider')) return;
+      const row = slider.closest<HTMLElement>('.track-mixer-row');
+      const slug = row?.dataset.slug;
+      const track = slug ? trackForSlug(slug) : undefined;
+      const api = bgAudio();
+      if (!track || !api) return;
+
+      // Only the currently active track's duration is known — dragging an
+      // inactive row's bar is a no-op until its play button is pressed.
+      const state = api.getState();
+      if (state.src !== track.src || !isFinite(state.duration) || state.duration <= 0) return;
+      api.seek(parseFloat(slider.value) * state.duration);
+    });
+
+    // Polls rather than relying solely on the bg-audio-state event, since
+    // that only fires on discrete changes (play/pause/switch) — the seek
+    // bar and time readout need to advance continuously while playing.
+    setInterval(() => {
+      const api = bgAudio();
+      const state = api?.getState();
+      document.querySelectorAll<HTMLElement>('.track-mixer-row').forEach((row) => {
+        const slug = row.dataset.slug;
+        const track = slug ? trackForSlug(slug) : undefined;
+        if (!track) return;
+
+        const btn = row.querySelector<HTMLElement>('.track-play-btn');
+        const playIcon = row.querySelector<HTMLElement>('.icon-play');
+        const pauseIcon = row.querySelector<HTMLElement>('.icon-pause');
+        const seekSlider = row.querySelector<HTMLInputElement>('.track-seek-slider');
+        const timeEl = row.querySelector<HTMLElement>('.track-time');
+
+        const isActive = !!state && state.src === track.src;
+        const isPlaying = isActive && state!.playing;
+
+        if (playIcon) playIcon.style.display = isPlaying ? 'none' : 'block';
+        if (pauseIcon) pauseIcon.style.display = isPlaying ? 'block' : 'none';
+        btn?.setAttribute('aria-label', `${isPlaying ? 'Pause' : 'Play'} ${track.title}`);
+
+        if (seekSlider && document.activeElement !== seekSlider) {
+          const fraction = isActive && state!.duration > 0 ? state!.currentTime / state!.duration : 0;
+          seekSlider.value = String(Math.min(1, Math.max(0, fraction)));
+        }
+        if (timeEl) {
+          timeEl.textContent = isActive
+            ? `${formatTime(state!.currentTime)} / ${formatTime(state!.duration)}`
+            : '0:00 / 0:00';
+        }
+      });
+    }, 250);
+  }
+</script>

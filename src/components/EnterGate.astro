@@ -1,0 +1,85 @@
+---
+// A single click-through gate shown on every hard page load. Its only
+// purpose is to guarantee a real user gesture happens at the exact moment
+// the site is revealed, so BackgroundAudio's autoplay-muted-until-gesture
+// unmute (see onFirstGesture there) fires immediately instead of waiting
+// on some later incidental interaction.
+---
+
+<div id="enter-gate" class="enter-gate" transition:persist="enter-gate">
+  <button id="enter-gate-btn" class="enter-gate-btn" type="button">Enter</button>
+</div>
+
+<style>
+  .enter-gate {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(255, 255, 255, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+  }
+
+  .enter-gate.is-visible {
+    opacity: 1;
+  }
+
+  .enter-gate.is-hiding {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .enter-gate-btn {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--ink);
+    background: transparent;
+    border: none;
+    padding: 12px 34px;
+    cursor: pointer;
+  }
+
+  .enter-gate-btn:hover,
+  .enter-gate-btn:focus-visible {
+    color: var(--accent);
+  }
+</style>
+
+<script>
+  if (!(window as any).__enterGateInit) {
+    (window as any).__enterGateInit = true;
+
+    const gate = document.getElementById('enter-gate') as HTMLElement;
+    const FADE_MS = 500;
+
+    document.body.style.overflow = 'hidden';
+    // Double rAF so the initial opacity:0 paints before we transition in.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => gate.classList.add('is-visible'));
+    });
+
+    // Listens on the whole gate, not just the button, so clicking anywhere
+    // on the overlay enters — not only a click that lands on the text.
+    gate.addEventListener(
+      'click',
+      () => {
+        // This click is itself the gesture BackgroundAudio's document-level
+        // click listener is waiting for — no extra wiring needed, it just
+        // needs to actually reach `document`, which it does by bubbling.
+        gate.classList.remove('is-visible');
+        gate.classList.add('is-hiding');
+        document.body.style.overflow = '';
+        window.dispatchEvent(new Event('site-entered'));
+        setTimeout(() => {
+          gate.style.display = 'none';
+        }, FADE_MS);
+      },
+      { once: true }
+    );
+  }
+</script>

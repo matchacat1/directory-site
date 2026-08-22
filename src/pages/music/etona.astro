@@ -1,6 +1,8 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import { musicTracks } from '../../data/music-tracks';
+import TrackMixer from '../../components/TrackMixer.astro';
+import TrackSocialLinks from '../../components/TrackSocialLinks.astro';
 
 const SLUG = 'etona';
 const idx = musicTracks.findIndex((t) => t.slug === SLUG);
@@ -14,11 +16,9 @@ const next = musicTracks[(idx + 1) % musicTracks.length];
 
   <h1>{track.title}</h1>
 
-  <p>
-    Placeholder detail page for etona. Describe the problem, your
-    role, and the outcome — link out to a repo, write-up, or live demo
-    if you have one.
-  </p>
+  <TrackMixer song="etona" />
+
+  <TrackSocialLinks song="etona" />
 
   <nav class="track-nav" aria-label="Other music projects">
     <a class="track-nav-link track-nav-prev" href={`/music/${prev.slug}`}>

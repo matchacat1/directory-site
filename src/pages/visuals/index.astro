@@ -1,0 +1,24 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { visuals } from '../../data/visuals';
+
+const items = visuals.map((v) => ({ href: `/visuals/${v.slug}`, title: v.title, body: v.body, image: v.image }));
+---
+
+<Layout title="Visuals" active="visuals">
+  <h1>Visuals</h1>
+
+  {items.length > 0 ? (
+    <div class="project-grid">
+      {items.map((p) => (
+        <div class="project-card">
+          <a class="project-image" href={p.href} aria-label={p.title}>
+            <img src={p.image} alt="" loading="lazy" />
+          </a>
+        </div>
+      ))}
+    </div>
+  ) : (
+    <p class="muted">More coming soon.</p>
+  )}
+</Layout>
