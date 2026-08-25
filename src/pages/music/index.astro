@@ -1,22 +1,93 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import { musicTracks } from '../../data/music-tracks';
+import { audioTracks } from '../../data/audio-tracks';
+import TrackMixer from '../../components/TrackMixer.astro';
 
-const tracks = musicTracks.map((t) => ({ href: `/music/${t.slug}`, title: t.title, body: t.body, image: t.image }));
+const tabs = [
+  { key: 'all', label: 'All', items: audioTracks },
+  ...musicTracks.map((m) => ({
+    key: m.slug,
+    label: m.title,
+    items: audioTracks.filter((t) => t.song === m.slug),
+  })),
+];
 ---
 
 <Layout title="Music" active="music">
   <h1>Music</h1>
 
-  <div class="project-grid">
-    {tracks.map((p) => (
-      <div class="project-card">
-        <a class="project-image" href={p.href} aria-label={p.title}>
-          <img src={p.image} alt="" loading="lazy" />
-        </a>
-        <a class="project-title" href={p.href}>{p.title}</a>
-        <p class="project-desc">{p.body}</p>
-      </div>
+  <div class="music-tabs" role="tablist" aria-label="Filter by alias">
+    {tabs.map((tab, i) => (
+      <button
+        type="button"
+        class="music-tab"
+        data-tab={tab.key}
+        role="tab"
+        aria-selected={i === 0 ? 'true' : 'false'}
+      >
+        {tab.label}
+      </button>
     ))}
   </div>
+
+  {tabs.map((tab, i) => (
+    <div class="music-panel" data-panel={tab.key} hidden={i === 0 ? undefined : true}>
+      <TrackMixer tracks={tab.items} />
+    </div>
+  ))}
 </Layout>
+
+<script>
+  // .music-tabs isn't transition:persist'd, so this whole page (including
+  // this script) is torn down and rebuilt fresh on every navigation to
+  // it — no cross-navigation init guard needed.
+  document.addEventListener('astro:page-load', () => {
+    const root = document.querySelector('.music-tabs');
+    if (!root) return;
+
+    const tabs = Array.from(root.querySelectorAll<HTMLButtonElement>('.music-tab'));
+    const panels = Array.from(document.querySelectorAll<HTMLElement>('.music-panel'));
+
+    root.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement)?.closest<HTMLButtonElement>('.music-tab');
+      if (!btn) return;
+      const key = btn.dataset.tab;
+
+      for (const t of tabs) t.setAttribute('aria-selected', t === btn ? 'true' : 'false');
+      for (const p of panels) p.hidden = p.dataset.panel !== key;
+    });
+  });
+</script>
+
+<style>
+  .music-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 18px;
+    margin: 0 0 28px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .music-tab {
+    appearance: none;
+    background: none;
+    border: none;
+    padding: 0;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.02em;
+    color: var(--ink-soft);
+    cursor: pointer;
+  }
+
+  .music-tab:hover {
+    color: var(--accent);
+  }
+
+  .music-tab[aria-selected='true'] {
+    color: var(--ink);
+  }
+</style>

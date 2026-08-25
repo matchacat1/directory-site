@@ -61,10 +61,9 @@ const gridJson = JSON.stringify(brainData.grid);
     letter-spacing: 0.04em;
     white-space: pre;
     color: var(--ink);
-    -webkit-user-select: text;
-    user-select: text;
-    pointer-events: auto;
-    cursor: text;
+    -webkit-user-select: none;
+    user-select: none;
+    pointer-events: none;
     transform-origin: bottom right;
   }
 
@@ -425,8 +424,8 @@ const gridJson = JSON.stringify(brainData.grid);
         const HOME_OPACITY = 1;
         const HOME_BLUR = 0;
         const SUB_OPACITY = 0.28;
-        const SUB_BLUR = 1.5;
-        const FOG_DURATION = 70;
+        const SUB_BLUR = 4;
+        const FOG_DURATION = 480;
 
         // Linear motion with a sinusoidal velocity ripple layered on top:
         // quicker at the very start and end, slower (never stalled) through
@@ -497,7 +496,10 @@ const gridJson = JSON.stringify(brainData.grid);
         document.addEventListener('astro:after-swap', () => {
           if (!hasLoadedOnce) return;
           const contentEl = document.querySelector('.content');
-          if (contentEl) contentEl.style.opacity = '0';
+          if (contentEl) {
+            contentEl.style.opacity = '0';
+            contentEl.style.transform = 'translateY(10px)';
+          }
         });
 
         document.addEventListener('astro:page-load', () => {
@@ -513,10 +515,13 @@ const gridJson = JSON.stringify(brainData.grid);
 
           // astro:after-swap already hid the new content the instant it
           // appeared — now that the transition has actually settled, run
-          // the fog change and fade the content back in alongside it.
+          // the fog change and fade/slide the content back in alongside it.
           const contentEl = document.querySelector('.content');
           applyFogState(isHome, true, () => {
-            if (contentEl) contentEl.style.opacity = '1';
+            if (contentEl) {
+              contentEl.style.opacity = '1';
+              contentEl.style.transform = 'translateY(0)';
+            }
           });
         });
       }

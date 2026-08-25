@@ -188,13 +188,15 @@ a {
   margin-left: clamp(calc(var(--sidebar-width) + var(--gap)), 36vw, 620px);
   padding: 56px 40px 96px;
   max-width: 780px;
-  /* Smooths the page-to-page opacity toggle BrainScene.astro drives via
-     inline style during navigation — without this the reveal is an abrupt
-     snap instead of a fade, which reads as a flicker/glitch rather than a
-     transition. Safe as a plain CSS transition (unlike the fog effect's
-     attribute-driven one) since this is a direct inline-style change, not
-     a selector match flipping mid view-transition callback. */
-  transition: opacity 150ms ease;
+  /* Smooths the page-to-page opacity/transform toggle BrainScene.astro
+     drives via inline style during navigation — without this the reveal is
+     an abrupt snap instead of a fade+slide, which reads as a
+     flicker/glitch rather than a transition. Safe as a plain CSS
+     transition (unlike the fog effect's attribute-driven one) since this
+     is a direct inline-style change, not a selector match flipping mid
+     view-transition callback. Duration matches BrainScene's FOG_DURATION
+     so the content and background fog settle together. */
+  transition: opacity 480ms ease, transform 480ms ease;
 }
 
 @media (max-width: 720px) {
