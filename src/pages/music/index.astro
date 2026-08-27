@@ -29,6 +29,7 @@ const tabs = [
         {tab.label}
       </button>
     ))}
+    <span class="music-tab-underline" aria-hidden="true"></span>
   </div>
 
   {tabs.map((tab, i) => (
@@ -43,11 +44,23 @@ const tabs = [
   // this script) is torn down and rebuilt fresh on every navigation to
   // it — no cross-navigation init guard needed.
   document.addEventListener('astro:page-load', () => {
-    const root = document.querySelector('.music-tabs');
+    const root = document.querySelector<HTMLElement>('.music-tabs');
     if (!root) return;
 
     const tabs = Array.from(root.querySelectorAll<HTMLButtonElement>('.music-tab'));
     const panels = Array.from(document.querySelectorAll<HTMLElement>('.music-panel'));
+    const underline = root.querySelector<HTMLElement>('.music-tab-underline');
+
+    function moveUnderline(tab: HTMLElement, animate: boolean) {
+      if (!underline) return;
+      underline.style.transition = animate ? '' : 'none';
+      underline.style.left = `${tab.offsetLeft}px`;
+      underline.style.width = `${tab.offsetWidth}px`;
+      if (!animate) underline.offsetHeight; // force reflow so the next transition re-enables cleanly
+    }
+
+    const initialTab = tabs.find((t) => t.getAttribute('aria-selected') === 'true');
+    if (initialTab) moveUnderline(initialTab, false);
 
     root.addEventListener('click', (e) => {
       const btn = (e.target as HTMLElement)?.closest<HTMLButtonElement>('.music-tab');
@@ -56,12 +69,14 @@ const tabs = [
 
       for (const t of tabs) t.setAttribute('aria-selected', t === btn ? 'true' : 'false');
       for (const p of panels) p.hidden = p.dataset.panel !== key;
+      moveUnderline(btn, true);
     });
   });
 </script>
 
 <style>
   .music-tabs {
+    position: relative;
     display: flex;
     flex-wrap: wrap;
     gap: 4px 18px;
@@ -89,5 +104,19 @@ const tabs = [
 
   .music-tab[aria-selected='true'] {
     color: var(--ink);
+  }
+
+  /* A single shared marker (rather than one per tab) so its left/width
+     can be transitioned by JS when the selection changes — sliding
+     between two different elements isn't something CSS alone can
+     animate. Sits directly on top of .music-tabs' grey divider line. */
+  .music-tab-underline {
+    position: absolute;
+    left: 0;
+    bottom: -1px;
+    width: 0;
+    height: 2px;
+    background: var(--ink);
+    transition: left 0.25s ease, width 0.25s ease;
   }
 </style>
