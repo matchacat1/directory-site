@@ -5,16 +5,25 @@ import { audioTracks } from '../../data/audio-tracks';
 import TrackMixer from '../../components/TrackMixer.astro';
 
 const tabs = [
-  { key: 'all', label: 'All', items: audioTracks },
+  { key: 'all', label: 'All', items: audioTracks, image: null },
   ...musicTracks.map((m) => ({
     key: m.slug,
     label: m.title,
     items: audioTracks.filter((t) => t.song === m.slug),
+    image: m.image,
   })),
 ];
 ---
 
 <Layout title="Music" active="music">
+  <div
+    class="track-backdrop music-backdrop-layer"
+    id="music-backdrop-a"
+    style={tabs[0].image ? `background-image: url(${tabs[0].image})` : ''}
+    aria-hidden="true"
+  ></div>
+  <div class="track-backdrop music-backdrop-layer" id="music-backdrop-b" aria-hidden="true"></div>
+
   <h1>Music</h1>
 
   <div class="music-tabs" role="tablist" aria-label="Filter by alias">
@@ -23,6 +32,7 @@ const tabs = [
         type="button"
         class="music-tab"
         data-tab={tab.key}
+        data-image={tab.image ?? ''}
         role="tab"
         aria-selected={i === 0 ? 'true' : 'false'}
       >
@@ -50,6 +60,9 @@ const tabs = [
     const tabs = Array.from(root.querySelectorAll<HTMLButtonElement>('.music-tab'));
     const panels = Array.from(document.querySelectorAll<HTMLElement>('.music-panel'));
     const underline = root.querySelector<HTMLElement>('.music-tab-underline');
+    const backdropA = document.getElementById('music-backdrop-a') as HTMLElement | null;
+    const backdropB = document.getElementById('music-backdrop-b') as HTMLElement | null;
+    const BACKDROP_OPACITY = 0.22;
 
     function moveUnderline(tab: HTMLElement, animate: boolean) {
       if (!underline) return;
@@ -57,6 +70,38 @@ const tabs = [
       underline.style.left = `${tab.offsetLeft}px`;
       underline.style.width = `${tab.offsetWidth}px`;
       if (!animate) underline.offsetHeight; // force reflow so the next transition re-enables cleanly
+    }
+
+    // Same blurred-cover-art treatment as an individual track page, just
+    // swapped for the selected alias instead of fixed per-page. Two stacked
+    // layers (rather than one) so switching aliases is a real crossfade —
+    // the outgoing image fading down while the incoming one fades up
+    // simultaneously, so they visibly dissolve/blend into each other —
+    // instead of dipping to fully invisible before the next one appears.
+    // The 'All' tab has no single alias to represent, so it just fades to
+    // nothing.
+    let activeBackdrop = backdropA;
+    function applyBackdrop(image: string, animate: boolean) {
+      if (!backdropA || !backdropB) return;
+      if (!animate) {
+        activeBackdrop = backdropA;
+        backdropA.style.backgroundImage = image ? `url(${image})` : 'none';
+        backdropA.style.opacity = image ? String(BACKDROP_OPACITY) : '0';
+        backdropB.style.backgroundImage = 'none';
+        backdropB.style.opacity = '0';
+        return;
+      }
+      const incoming = activeBackdrop === backdropA ? backdropB : backdropA;
+      const outgoing = activeBackdrop;
+      incoming.style.backgroundImage = image ? `url(${image})` : 'none';
+      // Force a reflow before flipping opacity so the browser actually
+      // paints the new (still-0) starting state first — otherwise this and
+      // the opacity change below can get coalesced into one paint and the
+      // transition never runs.
+      incoming.offsetHeight;
+      incoming.style.opacity = image ? String(BACKDROP_OPACITY) : '0';
+      outgoing.style.opacity = '0';
+      activeBackdrop = incoming;
     }
 
     const initialTab = tabs.find((t) => t.getAttribute('aria-selected') === 'true');
@@ -70,11 +115,23 @@ const tabs = [
       for (const t of tabs) t.setAttribute('aria-selected', t === btn ? 'true' : 'false');
       for (const p of panels) p.hidden = p.dataset.panel !== key;
       moveUnderline(btn, true);
+      applyBackdrop(btn.dataset.image ?? '', true);
     });
   });
 </script>
 
 <style>
+  /* Overrides .track-backdrop's fixed opacity (global.css) so each layer
+     can be faded in/out independently per the JS crossfade above — both
+     start hidden since the default 'All' tab has no single alias image to
+     show. Stacked exactly on top of each other (both inherit .track-
+     backdrop's position:absolute; inset:-30px) so a crossfade between them
+     reads as one image dissolving into the other, not two separate boxes. */
+  .music-backdrop-layer {
+    opacity: 0;
+    transition: opacity 0.5s ease;
+  }
+
   .music-tabs {
     position: relative;
     display: flex;

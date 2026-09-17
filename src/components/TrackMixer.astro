@@ -262,7 +262,13 @@ const tracks = tracksProp ?? audioTracks.filter((t) => t.song === song);
     // Polls rather than relying solely on the bg-audio-state event, since
     // that only fires on discrete changes (play/pause/switch) — the seek
     // bar and time readout need to advance continuously while playing.
+    // Runs for the entire browsing session (see the module-level comment
+    // above), so skipping while the tab is backgrounded — BackgroundAudio
+    // already pauses playback then, meaning there's nothing changing to
+    // reflect anyway — matters for battery/CPU over a long-lived tab.
     setInterval(() => {
+      if (document.hidden) return;
+
       const api = bgAudio();
       const state = api?.getState();
 

@@ -1,0 +1,199 @@
+---
+// A single hero-sized slideshow: the real media (video/image, passed via
+// the default slot) as the first slide, followed by placeholder tiles
+// standing in for screenshots/renders not shot yet. Flipped through with
+// the arrows/dots below instead of a separate gallery grid.
+interface Props {
+  count?: number;
+  maxWidth?: string;
+  aspectRatio?: string;
+}
+
+const { count = 4, maxWidth = '640px', aspectRatio = '16 / 9' } = Astro.props;
+const hasMain = Astro.slots.has('default');
+const placeholderStart = hasMain ? 1 : 0;
+const totalSlides = count + (hasMain ? 1 : 0);
+---
+
+<div class="media-slideshow-wrap" style={`max-width:${maxWidth}`}>
+  <div class="media-slideshow" style={`aspect-ratio:${aspectRatio}`}>
+    <div class="slideshow-track">
+      {hasMain && (
+        <div class="slideshow-slide">
+          <slot />
+        </div>
+      )}
+      {Array.from({ length: count }).map((_, i) => (
+        <div class="slideshow-slide slideshow-slide-placeholder">
+          <span class="slideshow-placeholder-index">{String(placeholderStart + i + 1).padStart(2, '0')}</span>
+        </div>
+      ))}
+    </div>
+
+    {totalSlides > 1 && (
+      <>
+        <button type="button" class="slideshow-arrow slideshow-prev" aria-label="Previous image">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+        </button>
+        <button type="button" class="slideshow-arrow slideshow-next" aria-label="Next image">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </button>
+      </>
+    )}
+  </div>
+
+  {totalSlides > 1 && (
+    /* Below the media box (not overlaid on it) — the main slide is
+       often a <video> with its own native control bar along the
+       bottom, which an overlaid dot row would sit on top of and fight
+       with for clicks. */
+    <div class="slideshow-dots" role="tablist" aria-label="Slides">
+      {Array.from({ length: totalSlides }).map((_, i) => (
+        <button
+          type="button"
+          class="slideshow-dot"
+          data-dot={i}
+          role="tab"
+          aria-label={`Go to image ${i + 1}`}
+          aria-selected={i === 0 ? 'true' : 'false'}
+        />
+      ))}
+    </div>
+  )}
+</div>
+
+<style>
+  .media-slideshow-wrap {
+    width: 100%;
+    margin: 0 0 20px;
+  }
+
+  .media-slideshow {
+    position: relative;
+    width: 100%;
+    border: 1px solid var(--ink);
+    background: #000;
+    overflow: hidden;
+  }
+
+  .slideshow-track {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.35s ease;
+  }
+
+  .slideshow-slide {
+    flex: 0 0 100%;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Slotted video/img fills the slide edge-to-edge — the border/background
+     now lives on .media-slideshow itself, not the individual media tag. */
+  .slideshow-slide :global(video),
+  .slideshow-slide :global(img) {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .slideshow-slide-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fafaf8;
+    color: var(--ink-faint);
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+
+  .slideshow-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: rgba(255, 255, 255, 0.65);
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
+    color: var(--ink);
+    cursor: pointer;
+    z-index: 2;
+  }
+
+  .slideshow-arrow:hover {
+    color: var(--accent);
+  }
+
+  .slideshow-prev {
+    left: 8px;
+  }
+
+  .slideshow-next {
+    right: 8px;
+  }
+
+  .slideshow-dots {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .slideshow-dot {
+    width: 6px;
+    height: 6px;
+    padding: 0;
+    border: none;
+    background: var(--line);
+    cursor: pointer;
+  }
+
+  .slideshow-dot:hover {
+    background: var(--ink-soft);
+  }
+
+  .slideshow-dot[aria-selected='true'] {
+    background: var(--ink);
+  }
+</style>
+
+<script>
+  // Not transition:persist'd, so every subpage visit tears this down and
+  // rebuilds it fresh — no cross-navigation init guard needed. Handles
+  // every .media-slideshow on the page (currently always exactly one).
+  document.addEventListener('astro:page-load', () => {
+    const roots = document.querySelectorAll<HTMLElement>('.media-slideshow-wrap');
+
+    roots.forEach((root) => {
+      const track = root.querySelector<HTMLElement>('.slideshow-track');
+      const slides = Array.from(root.querySelectorAll<HTMLElement>('.slideshow-slide'));
+      const dots = Array.from(root.querySelectorAll<HTMLButtonElement>('.slideshow-dot'));
+      const prevBtn = root.querySelector<HTMLButtonElement>('.slideshow-prev');
+      const nextBtn = root.querySelector<HTMLButtonElement>('.slideshow-next');
+      if (!track || slides.length < 2) return;
+
+      let index = 0;
+
+      function goTo(i: number) {
+        index = (i + slides.length) % slides.length;
+        track.style.transform = `translateX(-${index * 100}%)`;
+        dots.forEach((d, di) => d.setAttribute('aria-selected', di === index ? 'true' : 'false'));
+      }
+
+      prevBtn?.addEventListener('click', () => goTo(index - 1));
+      nextBtn?.addEventListener('click', () => goTo(index + 1));
+      dots.forEach((d, di) => d.addEventListener('click', () => goTo(di)));
+    });
+  });
+</script>

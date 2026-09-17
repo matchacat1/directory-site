@@ -30,6 +30,14 @@ const DIRECTORY = [
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{active === 'home' ? SITE_TITLE : `${title} — ${SITE_TITLE}`}</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- The fonts every page renders immediately (nav/headers + body copy)
+         — preloaded so the browser fetches them in parallel with the CSS
+         that references them, instead of discovering the need only after
+         parsing global.css, which is what font-display: swap alone leaves
+         on the table (a visible flash from fallback to webfont). -->
+    <link rel="preload" href="/fonts/SpaceMono-Regular.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/SpaceMono-Bold.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/CourierPrime-Regular.woff2" as="font" type="font/woff2" crossorigin />
     <ClientRouter />
   </head>
   <body data-page={active}>

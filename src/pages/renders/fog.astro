@@ -1,5 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import MediaSlideshow from '../../components/MediaSlideshow.astro';
 import { visuals } from '../../data/visuals';
 
 const SLUG = 'fog';
@@ -14,7 +15,9 @@ const showNav = visuals.length > 1;
 
   <h1>Fog</h1>
 
-  <img class="visual-image" src="/images/visuals/fog-poster.jpg" alt="Fog node graph" />
+  <MediaSlideshow count={4} maxWidth="640px" aspectRatio="16 / 9">
+    <img src="/images/visuals/fog-poster.jpg" alt="Fog node graph" />
+  </MediaSlideshow>
 
   <p>Generative fog tool. Runs on Blender & TouchDesigner.</p>
 
@@ -33,13 +36,3 @@ const showNav = visuals.length > 1;
 
   <a class="back-link" href="/renders">← back to Renders</a>
 </Layout>
-
-<style>
-  .visual-image {
-    display: block;
-    width: 100%;
-    max-width: 640px;
-    margin: 0 0 20px;
-    border: 1px solid var(--ink);
-  }
-</style>

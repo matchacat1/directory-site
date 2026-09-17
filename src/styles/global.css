@@ -32,6 +32,24 @@
   font-display: swap;
 }
 
+/* Body-text typeface — headers/nav/labels stay on Space Mono above via
+   --font-mono. */
+@font-face {
+  font-family: "Courier Prime";
+  src: url("/fonts/CourierPrime-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Courier Prime";
+  src: url("/fonts/CourierPrime-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* ---------------------------------------------------------------
    Design tokens
    Minimal, text-first, directory-style layout. Fixed left menu,
@@ -45,7 +63,7 @@
   --line: #dedcd5;
   --accent: #b5651d;
 
-  --font-body: "Space Mono", "SF Mono", Menlo, Consolas, monospace;
+  --font-body: "Courier Prime", "Courier New", Menlo, Consolas, monospace;
   --font-mono: "Space Mono", "SF Mono", Menlo, Consolas, monospace;
 
   --sidebar-width: 220px;
@@ -115,7 +133,11 @@ a {
     width: auto;
     height: auto;
     overflow-y: visible;
-    padding: 32px 20px 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 10px 22px;
+    padding: 24px 20px 16px;
   }
 }
 
@@ -146,8 +168,26 @@ a {
   margin-bottom: 0;
 }
 
+@media (max-width: 720px) {
+  .site-title {
+    margin: 0;
+  }
+
+  .directory nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 10px 20px;
+  }
+
+  .dir-section {
+    margin: 0;
+  }
+}
+
 .dir-heading {
   display: inline-block;
+  font-family: var(--font-mono);
   font-weight: 700;
   font-size: 13.5px;
   text-decoration: none;
@@ -174,7 +214,7 @@ a {
 
 @media (max-width: 720px) {
   .header-gap {
-    height: 64px;
+    height: 28px;
   }
 }
 
@@ -229,6 +269,9 @@ a {
   background-position: center;
   filter: blur(16px);
   opacity: 0.22;
+  /* Zooms the cover art in by 20% (scale is uniform, so the blur/mask
+     zoom with it as one unit rather than the crop just shifting). */
+  transform: scale(1.2);
   -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 72%);
   mask-image: radial-gradient(ellipse at center, black 30%, transparent 72%);
   pointer-events: none;
@@ -390,6 +433,7 @@ a {
 .project-title {
   display: block;
   margin: 10px 0 0;
+  font-family: var(--font-mono);
   font-weight: 700;
   font-size: 13px;
   text-decoration: none;
@@ -402,6 +446,7 @@ a {
 
 .project-desc {
   margin: 6px 0 0;
+  font-family: var(--font-mono);
   font-size: 11.5px;
   color: var(--ink-soft);
 }
@@ -417,6 +462,7 @@ a {
 
 .track-flavor {
   margin: 0 0 32px;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: var(--ink-soft);
 }

@@ -34,39 +34,49 @@ const DEFAULT_TRACK = audioTracks[0];
           <line x1="22" y1="9" x2="16" y2="15"></line>
         </svg>
       </button>
-      <a id="now-playing" class="now-playing" href={`/music/${DEFAULT_TRACK.song}`}>Now playing: {DEFAULT_TRACK.nowPlaying}</a>
+      <a id="now-playing" class="now-playing" href="/music">Now playing: {DEFAULT_TRACK.nowPlaying}</a>
     </div>
   </div>
 
 </div>
 
 <style>
+  /* No longer a positioned box itself — .volume-slider-wrap and
+     .volume-icon-row below are each independently position:fixed at
+     complementary anchors instead of flex children of a fixed .volume-
+     control. That split is required for the invert-over-anything trick
+     on .volume-icon-row to work: Chromium only composites mix-blend-mode
+     against the page's real backdrop when the blended element is ITSELF
+     the separately-GPU-composited fixed layer — nesting it inside another
+     position:fixed ancestor gets it flattened within that ancestor's own
+     layer first, seeing an empty backdrop, which just makes it vanish
+     instead of inverting. Kept only as a shared, non-fixed DOM ancestor so
+     the :has()-based hover/focus rules below still apply to both pieces. */
   .volume-control {
-    position: fixed;
-    left: 24px;
-    bottom: 24px;
-    display: flex;
-    flex-direction: column;
-    /* flex-start (not center) so the 28px-wide slider-wrap and the 28px-wide
-       icon button — both left-aligned within the column — share a left
-       edge. Centering here would center the slider over the full icon+text
-       row instead of just the icon, once the "now playing" text widened
-       that row. */
-    align-items: flex-start;
-    gap: 2px;
-    z-index: 50;
+    display: contents;
   }
 
   .volume-icon-row {
+    position: fixed;
+    left: 24px;
+    bottom: 24px;
+    z-index: 50;
     display: flex;
     align-items: center;
     gap: 8px;
+    /* White + mix-blend-mode: difference inverts against whatever's
+       directly underneath (page bg, images, video posters) instead of a
+       fixed color — stays legible over both light and dark content as
+       the page scrolls beneath this fixed-position control. Scoped to
+       just the icon+text row, not the slider — see .volume-control above. */
+    color: #fff;
+    mix-blend-mode: difference;
   }
 
   .now-playing {
     font-family: var(--font-mono);
     font-size: 10.5px;
-    color: var(--ink-soft);
+    color: inherit;
     text-decoration: none;
     white-space: nowrap;
     opacity: 0;
@@ -90,7 +100,7 @@ const DEFAULT_TRACK = audioTracks[0];
       opacity: 1;
     }
     50% {
-      opacity: 0.3;
+      opacity: 0.6;
     }
   }
 
@@ -100,7 +110,7 @@ const DEFAULT_TRACK = audioTracks[0];
     height: 28px;
     border: none;
     background: transparent;
-    color: var(--ink-soft);
+    color: inherit;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -113,7 +123,16 @@ const DEFAULT_TRACK = audioTracks[0];
     color: var(--accent);
   }
 
+  /* Independently fixed, anchored just above .volume-icon-row (24px +
+     its 28px height + the original flex column's 2px gap) — see the
+     comment on .volume-control above for why these two can't just be
+     flex children of one shared fixed box anymore. Anchoring by `bottom`
+     means it grows upward, on top of the icon row, exactly as before. */
   .volume-slider-wrap {
+    position: fixed;
+    left: 24px;
+    bottom: 54px;
+    z-index: 50;
     width: 28px;
     display: flex;
     align-items: center;
@@ -221,21 +240,6 @@ const DEFAULT_TRACK = audioTracks[0];
         }
       });
 
-      // On mouse-driven devices, clicking/dragging the slider leaves it
-      // focused, and :focus-within alone would then hold the slider open
-      // indefinitely even after the cursor moves away. Dropping focus (and
-      // the touch-only is-expanded latch) as soon as the pointer leaves the
-      // control collapses it back down, matching hover-driven expectations.
-      // Left untouched on touch devices, where there's no hover to leave.
-      if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
-        volumeControl.addEventListener('mouseleave', () => {
-          volumeControl.classList.remove('is-expanded');
-          if (document.activeElement === slider) {
-            slider.blur();
-          }
-        });
-      }
-
       // The slider is visually rotated 90° via CSS. A native range input's
       // own touch handling doesn't reliably re-project touch coordinates
       // through that rotation on mobile browsers, so dragging it by touch
@@ -244,6 +248,23 @@ const DEFAULT_TRACK = audioTracks[0];
       // so is exactly what's on screen — sidesteps that while keeping the
       // native (working) mouse/keyboard behavior on desktop untouched.
       const sliderWrap = slider.closest('.volume-slider-wrap') as HTMLElement | null;
+
+      // On mouse-driven devices, clicking/dragging the slider leaves it
+      // focused, and :focus-within alone would then hold the slider open
+      // indefinitely even after the cursor moves away. Dropping focus (and
+      // the touch-only is-expanded latch) as soon as the pointer leaves the
+      // slider collapses it back down, matching hover-driven expectations.
+      // Bound to sliderWrap specifically (not volumeControl, which is
+      // display:contents and so has no box of its own to leave) — left
+      // untouched on touch devices, where there's no hover to leave.
+      if (sliderWrap && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+        sliderWrap.addEventListener('mouseleave', () => {
+          volumeControl.classList.remove('is-expanded');
+          if (document.activeElement === slider) {
+            slider.blur();
+          }
+        });
+      }
       let touchDragging = false;
       function setVolumeFromTouchY(clientY: number) {
         if (!sliderWrap) return;
@@ -334,7 +355,6 @@ const DEFAULT_TRACK = audioTracks[0];
       function setNowPlayingDisplay(track: (typeof audioTracks)[number]) {
         if (!nowPlaying) return;
         nowPlaying.textContent = `Now playing: ${track.nowPlaying}`;
-        nowPlaying.href = `/music/${track.song}`;
       }
 
       function currentState() {

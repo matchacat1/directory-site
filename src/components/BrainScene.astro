@@ -71,8 +71,8 @@ const gridJson = JSON.stringify(brainData.grid);
      offsets scaled down to match so the crop framing stays proportional. */
   @media (max-width: 720px) {
     .brain-text {
-      right: -50px;
-      bottom: -44px;
+      right: -78px;
+      bottom: -69px;
     }
   }
 
@@ -157,7 +157,7 @@ const gridJson = JSON.stringify(brainData.grid);
       // scale computation — matches the .brain-text mobile media query.
       const MOBILE_BREAKPOINT = 720;
       const TARGET_DESKTOP = { w: 760, h: 650 };
-      const TARGET_MOBILE = { w: 456, h: 390 };
+      const TARGET_MOBILE = { w: 660, h: 564 };
 
       function getTargetSize() {
         return window.innerWidth <= MOBILE_BREAKPOINT ? TARGET_MOBILE : TARGET_DESKTOP;

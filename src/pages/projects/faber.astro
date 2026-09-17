@@ -1,5 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import MediaSlideshow from '../../components/MediaSlideshow.astro';
 import { projects } from '../../data/projects';
 
 const SLUG = 'faber';
@@ -19,6 +20,10 @@ const showNav = projects.length > 1;
       In development
     </span>
   </div>
+
+  <MediaSlideshow count={4} maxWidth="640px" aspectRatio="16 / 9">
+    <img src="/images/projects/faber.png" alt="Faber" />
+  </MediaSlideshow>
 
   <p>
     Semi-modular wavetable synthesizer with tree-like fractal growth
@@ -76,6 +81,7 @@ const showNav = projects.length > 1;
   }
 
   .spec-label {
+    font-family: var(--font-mono);
     font-size: 12px;
   }
 
@@ -84,6 +90,7 @@ const showNav = projects.length > 1;
     align-items: center;
     gap: 8px;
     margin: 0 0 2px;
+    font-family: var(--font-mono);
     font-size: 12px;
   }
 
@@ -95,6 +102,7 @@ const showNav = projects.length > 1;
   .spec-detail {
     margin: 0 0 16px;
     margin-left: 19px;
+    font-family: var(--font-mono);
     font-size: 10.5px;
     color: var(--ink-soft);
   }
