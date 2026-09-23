@@ -66,6 +66,10 @@
   --font-body: "Courier Prime", "Courier New", Menlo, Consolas, monospace;
   --font-mono: "Space Mono", "SF Mono", Menlo, Consolas, monospace;
 
+  /* One gap used between the site title and the first nav group and between
+     nav groups, so the header's rhythm is even. */
+  --nav-gap: 60px;
+
   --sidebar-width: 220px;
   --gap: 48px;
 }
@@ -146,7 +150,7 @@ a {
   font-family: var(--font-mono);
   font-weight: 700;
   font-size: 13.5px;
-  margin: 0 0 32px;
+  margin: 0 0 var(--nav-gap);
   letter-spacing: -0.01em;
   text-decoration: none;
   color: var(--ink);
@@ -160,8 +164,21 @@ a {
   color: var(--accent);
 }
 
+/* Items within a group sit close together; groups are separated by a
+   larger gap, so Projects/Music/Renders read as one cluster and
+   About/Contact as another. */
+.dir-group {
+  /* minus .dir-heading's own 6px bottom margin, so the visible gap between
+     text lines matches the title's */
+  margin: 0 0 calc(var(--nav-gap) - 6px);
+}
+
+.dir-group:last-child {
+  margin-bottom: 0;
+}
+
 .dir-section {
-  margin: 0 0 30px;
+  margin: 0 0 4px;
 }
 
 .dir-section:last-child {
@@ -178,6 +195,12 @@ a {
     flex-wrap: wrap;
     align-items: baseline;
     gap: 10px 20px;
+  }
+
+  /* No grouping on mobile — the groups dissolve so all five links are
+     direct flex items of the nav, evenly spaced. */
+  .dir-group {
+    display: contents;
   }
 
   .dir-section {

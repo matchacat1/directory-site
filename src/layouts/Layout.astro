@@ -14,12 +14,18 @@ const { title, active } = Astro.props;
 
 const SITE_TITLE = 'Daniel Hong';
 
-const DIRECTORY = [
-  { key: 'projects', label: 'Projects', href: '/projects' },
-  { key: 'music', label: 'Music', href: '/music' },
-  { key: 'renders', label: 'Renders', href: '/renders' },
-  { key: 'about', label: 'About', href: '/about' },
-  { key: 'contact', label: 'Contact', href: '/contact' },
+// Nav items in visual groups — spacing between groups is larger than
+// within one (see .dir-group in global.css).
+const DIRECTORY_GROUPS = [
+  [
+    { key: 'projects', label: 'Projects', href: '/projects' },
+    { key: 'music', label: 'Music', href: '/music' },
+    { key: 'renders', label: 'Renders', href: '/renders' },
+  ],
+  [
+    { key: 'about', label: 'About', href: '/about' },
+    { key: 'contact', label: 'Contact', href: '/contact' },
+  ],
 ];
 ---
 
@@ -48,15 +54,19 @@ const DIRECTORY = [
       <aside class="directory">
         <a class="site-title" href="/" aria-current={active === 'home' ? 'page' : undefined}>{SITE_TITLE}</a>
         <nav>
-          {DIRECTORY.map((section) => (
-            <div class="dir-section">
-              <a
-                class="dir-heading"
-                href={section.href}
-                aria-current={active === section.key ? 'page' : undefined}
-              >
-                {section.label}
-              </a>
+          {DIRECTORY_GROUPS.map((group) => (
+            <div class="dir-group">
+              {group.map((section) => (
+                <div class="dir-section">
+                  <a
+                    class="dir-heading"
+                    href={section.href}
+                    aria-current={active === section.key ? 'page' : undefined}
+                  >
+                    {section.label}
+                  </a>
+                </div>
+              ))}
             </div>
           ))}
         </nav>
