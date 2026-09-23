@@ -104,8 +104,21 @@ const tabs = [
       activeBackdrop = incoming;
     }
 
-    const initialTab = tabs.find((t) => t.getAttribute('aria-selected') === 'true');
-    if (initialTab) moveUnderline(initialTab, false);
+    // Which tab to land on: a ?tab=<slug> in the URL (e.g. the sitewide
+    // "Now playing" link pointing at whichever alias is currently
+    // playing) takes priority over the server-rendered default ('All').
+    const requestedKey = new URLSearchParams(location.search).get('tab');
+    const initialTab =
+      (requestedKey && tabs.find((t) => t.dataset.tab === requestedKey)) ||
+      tabs.find((t) => t.getAttribute('aria-selected') === 'true') ||
+      tabs[0];
+
+    if (initialTab) {
+      for (const t of tabs) t.setAttribute('aria-selected', t === initialTab ? 'true' : 'false');
+      for (const p of panels) p.hidden = p.dataset.panel !== initialTab.dataset.tab;
+      moveUnderline(initialTab, false);
+      applyBackdrop(initialTab.dataset.image ?? '', false);
+    }
 
     root.addEventListener('click', (e) => {
       const btn = (e.target as HTMLElement)?.closest<HTMLButtonElement>('.music-tab');
@@ -116,6 +129,13 @@ const tabs = [
       for (const p of panels) p.hidden = p.dataset.panel !== key;
       moveUnderline(btn, true);
       applyBackdrop(btn.dataset.image ?? '', true);
+
+      // Keeps the URL in sync with the selected tab (sharable/reloadable,
+      // and consistent with the "Now playing" link landing here directly)
+      // without a real navigation — this page's own script never re-runs
+      // just because the query string changed underneath it.
+      const url = key === 'all' ? '/music' : `/music?tab=${key}`;
+      history.replaceState(history.state, '', url);
     });
   });
 </script>

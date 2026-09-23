@@ -1,9 +1,9 @@
 // Selectable mixes/versions for the sitewide background audio player,
-// grouped by which song's page they belong to (`song` matches that track's
-// slug in music-tracks.js). Each one gets its own play/pause button and
-// seek bar on its song's page — pressing play switches the background
-// player to that track and updates the "Now playing" text in the
-// bottom-left corner to match.
+// grouped by which alias tab they appear under on the music page (`song`
+// matches that alias's slug in music-tracks.js). Each one gets its own
+// play/pause button and seek bar there — pressing play switches the
+// background player to that track and updates the "Now playing" text in
+// the bottom-left corner to match.
 export const audioTracks = [
   { song: 'etona', slug: 'umlaut', title: 'umlaut', src: '/audio/ambino.mp3', nowPlaying: 'etona - umlaut' },
   {

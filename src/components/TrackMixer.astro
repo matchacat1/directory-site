@@ -2,11 +2,9 @@
 import { audioTracks } from '../data/audio-tracks';
 
 interface Props {
-  song?: string;
-  tracks?: (typeof audioTracks)[number][];
+  tracks: (typeof audioTracks)[number][];
 }
-const { song, tracks: tracksProp } = Astro.props;
-const tracks = tracksProp ?? audioTracks.filter((t) => t.song === song);
+const { tracks } = Astro.props;
 ---
 
 {tracks.length > 0 && (
