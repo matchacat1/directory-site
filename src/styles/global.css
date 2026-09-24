@@ -211,7 +211,7 @@ a {
 .dir-heading {
   display: inline-block;
   font-family: var(--font-mono);
-  font-weight: 700;
+  font-weight: 400;
   font-size: 13.5px;
   text-decoration: none;
   color: var(--ink);
@@ -222,8 +222,11 @@ a {
   color: var(--accent);
 }
 
+/* Which page you're on is shown by weight now, not color — keeps the
+   sidebar to ink/accent-on-hover only, with bold reserved for "you are
+   here" instead of doubling up with the orange highlight too. */
 .dir-heading[aria-current="page"] {
-  color: var(--accent);
+  font-weight: 700;
 }
 
 /* Invisible spacer between the header nav and content — only takes up
@@ -257,9 +260,10 @@ a {
      flicker/glitch rather than a transition. Safe as a plain CSS
      transition (unlike the fog effect's attribute-driven one) since this
      is a direct inline-style change, not a selector match flipping mid
-     view-transition callback. Duration matches BrainScene's FOG_DURATION
-     so the content and background fog settle together. */
-  transition: opacity 480ms ease, transform 480ms ease;
+     view-transition callback. Deliberately shorter than BrainScene's
+     FOG_DURATION so the page content appears quickly while the background
+     fog is still settling. */
+  transition: opacity 240ms ease, transform 240ms ease;
 }
 
 @media (max-width: 720px) {

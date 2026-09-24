@@ -514,15 +514,19 @@ const gridJson = JSON.stringify(brainData.grid);
           }
 
           // astro:after-swap already hid the new content the instant it
-          // appeared — now that the transition has actually settled, run
-          // the fog change and fade/slide the content back in alongside it.
+          // appeared — now that the transition has actually settled, start
+          // the fog change and fade/slide the content back in at the same
+          // time (not after the fog finishes), so the page is visible
+          // sooner. The forced reflow guarantees the browser has committed
+          // the hidden starting state, so the fade always runs instead of
+          // snapping.
           const contentEl = document.querySelector('.content');
-          applyFogState(isHome, true, () => {
-            if (contentEl) {
-              contentEl.style.opacity = '1';
-              contentEl.style.transform = 'translateY(0)';
-            }
-          });
+          applyFogState(isHome, true);
+          if (contentEl) {
+            void contentEl.offsetHeight;
+            contentEl.style.opacity = '1';
+            contentEl.style.transform = 'translateY(0)';
+          }
         });
       }
     }
